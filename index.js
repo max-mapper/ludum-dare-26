@@ -17,6 +17,7 @@ var dimensions = [b[0][1] - b[0][0], b[1][1] - b[1][0]]
 var highlight = require('voxel-highlight')
 var createGame = require('voxel-hello-world')
 createGame({
+  texturePath: './textures/',
   materials: ['blue', 'red'],
   chunkDistance: 4,
   fogDisabled: true,
