@@ -4,7 +4,7 @@
   "description": "ERROR: No README.md file found!",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "beefy index.js:bundle.js"
   },
   "repository": "",
   "author": "",
@@ -12,6 +12,8 @@
   "dependencies": {
     "peer": "~0.1.6",
     "voxel-hello-world": "~0.5.0",
-    "peerjs": "~0.2.0"
+    "peerjs": "~0.2.0",
+    "voxel-engine": "~0.17.1",
+    "voxel-highlight": "0.0.9"
   }
 }
