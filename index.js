@@ -23,7 +23,7 @@ var toWater = require('voxel-virus/example/water')
 
 createGame({
   texturePath: './textures/',
-  materials: ['blue', 'red', 'water', 'yellow'],
+  materials: ['blue', 'red', 'water', 'yellow', 'green'],
   chunkDistance: 4,
   materialParams: { vertexColors: 2 },
   fogDisabled: true,
@@ -42,13 +42,21 @@ function setup(game, avatar) {
   
   addLights(game)
   
-  var virus = createVirus({
+  var blueVirus = createVirus({
     game: game,
     material: 3,
   })
-  var toVirus = toWater(virus, 3)
+  var toVirus = toWater(blueVirus, 3)
   
-  game.on('tick', virus.tick.bind(virus))
+  game.on('tick', blueVirus.tick.bind(blueVirus))
+  
+  var greenVirus = createVirus({
+    game: game,
+    material: 5,
+  })
+  var toVirus = toWater(greenVirus, 5)
+  
+  game.on('tick', greenVirus.tick.bind(greenVirus))
   
   var start1 = [-50, 10, 0]
   var start2 = [50, 10, 0]
@@ -57,8 +65,8 @@ function setup(game, avatar) {
   game.setBlock(start2, 'yellow')
   
   setTimeout(function() {
-    virus.infect([start1[0], start1[1] - 1, start1[2]])
-    virus.infect([start2[0], start2[1] - 1, start2[2]])
+    blueVirus.infect([start1[0], start1[1] - 1, start1[2]])
+    greenVirus.infect([start2[0], start2[1] - 1, start2[2]])
   }, 10000)
 
   game.controls.target().avatar.cameraInside.position.y = 25
@@ -79,13 +87,35 @@ function setup(game, avatar) {
     var position = blockPosPlace
     if (position) {
       game.createBlock(position, 'red')
-      console.log(position)
+      checkAround(position)
     } else {
       position = blockPosErase
       var val = game.getBlock(position)
-      if (position && val !== 4) game.setBlock(position, 0)
+      if (position && val !== 4) {
+        game.setBlock(position, 0)
+        checkAround(position)
+      }
     }
   })
+  
+  function checkAround(position) {
+    var around = [
+      [0, 1, 0], [0, -1, 0],
+      [1, 0, 0], [-1, 0, 0],
+      [0, 0, 1], [0, 0, -1],
+    ]
+    around.forEach(function(p) {
+      var nextTo = [position[0] + p[0], position[1] + p[1], position[2] + p[2]]
+      var val = game.getBlock(nextTo)
+      if (val === 3) {
+        blueVirus.infect(nextTo)
+      }
+      if (val === 5) {
+        greenVirus.infect(nextTo)
+      }
+    })
+  }
+  
 }
 
 function addLights(game) {
