@@ -59,7 +59,7 @@ function setup(game, avatar) {
   setTimeout(function() {
     virus.infect([start1[0], start1[1] - 1, start1[2]])
     virus.infect([start2[0], start2[1] - 1, start2[2]])
-  }, 5000)
+  }, 10000)
 
   game.controls.target().avatar.cameraInside.position.y = 25
   game.controls.target().avatar.cameraInside.position.z = 3
