@@ -147,8 +147,6 @@ function boot() {
       }
     })
 
-
-    
     document.querySelector('.instructions').innerHTML = document.querySelector('#loaded').innerHTML
     document.querySelector('.look').addEventListener('click', function(e) {
       document.querySelector('.look').style.display = 'none'

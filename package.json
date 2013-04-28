@@ -1,5 +1,5 @@
 {
-  "name": "catapult",
+  "name": "p2plobby",
   "version": "0.0.0",
   "description": "ERROR: No README.md file found!",
   "main": "index.js",
@@ -16,5 +16,9 @@
     "voxel-engine": "~0.17.1",
     "voxel-highlight": "0.0.9",
     "voxel-creature": "~0.1.0"
+  },
+  "subdomain": "p2plobby",
+  "engines": {
+    "node": "0.8.x"
   }
 }
