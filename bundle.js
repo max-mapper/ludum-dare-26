@@ -132,7 +132,16 @@ var websocket = require('websocket-stream')
 var duplexEmitter = require('duplex-emitter')
 var skin = require('minecraft-skin')
 var _ = require('underscore')
-var lerpPercent = 0.1
+var highlight = require('voxel-highlight')
+var createGame = require('voxel-hello-world')
+var voxelMesh = require('voxel-mesh')
+var voxel = require('voxel')
+var createVirus = require('voxel-virus')
+var toWater = require('voxel-virus/example/water')
+var request = require('browser-request')
+var gameMessages = document.querySelector('#game-messages')
+
+var lerpPercent = 0.2
 var updateRate = 50
 var updateBufferSize = 5
 
@@ -140,29 +149,19 @@ boot()
 
 function boot() {
   
-  if( !Detector().webgl ) {
-    return alert('you are not webgl capable!')
-  }
+  if( !Detector().webgl ) { return alert('you are not webgl capable!')  }
 
   var id = ~~(Math.random() * 10000) + '' + ~~(Math.random() * 10000)
   var peer = new Peer(id, {host: 'peerjs-maxogden.jit.su', port: 80})
   // var peer = new Peer(id, {host: 'pizzacats.local', port: 9000})
   var socket = websocket('ws://p2plobby.jit.su')
   // var socket = websocket('ws://pizzacats.local:8080')
-  window.peer = peer  
+  window.peer = peer
   var emitter = duplexEmitter(socket)
 
   var b = [[-64, -32], [64, 32]]
   var height = 5
   var dimensions = [b[0][1] - b[0][0], b[1][1] - b[1][0]]
-
-  var highlight = require('voxel-highlight')
-  var createGame = require('voxel-hello-world')
-  var voxelMesh = require('voxel-mesh')
-  var voxel = require('voxel')
-  var createVirus = require('voxel-virus')
-  var toWater = require('voxel-virus/example/water')
-  var request = require('browser-request')
   
   createGame({
     texturePath: './textures/',
@@ -182,16 +181,24 @@ function boot() {
 
   function setup(game, avatar) {
     window.game = game
-
+    
     peer.on('connection', function(conn) {
       var messages = document.querySelector('.messages')
       messages.innerHTML += 'connected! prepare to play<br>'
       setTimeout(hideWelcome, 2000)
       emitter.emit('connected')
-      startWater()
+      game.paused = false
+      setTimeout(startWater, 30000)
+      avatar.position.copy({x: 60, y: 5, z: -5})
+      avatar.rotation.y = 1.6100000000000003
       transmitStateStream(game, conn)
       conn.on('data', updateOpponent)
+      conn.on('error', resetGame)
+      conn.on('close', resetGame)
     })
+    
+    peer.on('error', resetGame)
+    peer.on('close', resetGame)
 
     var editBuffer = []
     function updateBuffer(op) {
@@ -209,9 +216,8 @@ function boot() {
       }
     }
     
-
     addLights(game)
-
+    
     var blueVirus = createVirus({
       game: game,
       material: 3,
@@ -243,6 +249,16 @@ function boot() {
     function startWater() {
       blueVirus.infect([start1[0], start1[1] - 1, start1[2]])
       greenVirus.infect([start2[0], start2[1] - 1, start2[2]])
+      var doneTime = Date.now() + 300000
+      setTimeout(finishGame, 300000)
+      var countdown = setInterval(function() {
+        if (doneTime < Date.now()) return clearInterval(countdown)
+        gameMessages.innerHTML = (doneTime - Date.now()) / 1000 + " seconds remaining"
+      }, 1000)
+    }
+    
+    function finishGame() {
+      alert('game is over! todo: count blocks')
     }
 
     game.controls.target().avatar.cameraInside.position.y = 25
@@ -291,11 +307,15 @@ function boot() {
         conn.on('open', function() {
           messages.innerHTML += 'connected! prepare to play<br>'
           setTimeout(hideWelcome, 2000)
-          startWater()
+          setTimeout(startWater, 30000)
+          avatar.position.copy({x: -60, y: 5, z: -5})
+          avatar.rotation.y = -1.6360000000000001
           emitter.emit('connected')
           transmitStateStream(game, conn)
           conn.on('data', updateOpponent)
         })
+        conn.on('error', resetGame)
+        conn.on('close', resetGame)
       })
     })
   }
@@ -311,10 +331,14 @@ function checkAround(position) {
     var nextTo = [position[0] + p[0], position[1] + p[1], position[2] + p[2]]
     var val = game.getBlock(nextTo)
     if (val === 3) {
-      game.blueVirus.infect(nextTo)
+      setTimeout(function() {
+        game.blueVirus.infect(nextTo)
+      }, 1000)
     }
     if (val === 5) {
-      game.greenVirus.infect(nextTo)
+      setTimeout(function() {
+        game.greenVirus.infect(nextTo)
+      }, 1000)
     }
   })
 }
@@ -380,6 +404,7 @@ function sendState(game, conn) {
 }
 
 function hideWelcome() {
+  gameMessages.innerHTML = "Water turns on in 30 seconds!"
   document.querySelector('#welcome').style.display = 'none'
 }
 
@@ -408,6 +433,9 @@ function scale( x, fromLow, fromHigh, toLow, toHigh ) {
   return ( x - fromLow ) * ( toHigh - toLow ) / ( fromHigh - fromLow ) + toLow
 }
 
+function resetGame() {
+  alert('other player left, refresh page to find a new opponent')
+}
 },{"./detector":1,"voxel-virus/example/water":2,"duplex-emitter":5,"underscore":6,"voxel-mesh":7,"voxel":8,"browser-request":9,"websocket-stream":10,"minecraft-skin":11,"voxel-highlight":12,"voxel-hello-world":13,"voxel-virus":14}],3:[function(require,module,exports){
 var events = require('events');
 
@@ -2947,7 +2975,7 @@ module.exports.generateExamples = function() {
 }
 
 
-},{"./chunker":20,"./meshers/culled":21,"./meshers/greedy":22,"./meshers/monotone":23,"./meshers/stupid":24}],21:[function(require,module,exports){
+},{"./meshers/culled":20,"./chunker":21,"./meshers/greedy":22,"./meshers/monotone":23,"./meshers/stupid":24}],20:[function(require,module,exports){
 //Naive meshing (with face culling)
 function CulledMesh(volume, dims) {
   //Precalculate direction vectors for convenience
@@ -3963,16 +3991,7 @@ function b64_enc (data) {
 }
 
 })()
-},{"./xmlhttprequest":27}],28:[function(require,module,exports){
-(function(__dirname){var path = require('path')
-var texturePath = __dirname + '/textures'
-
-module.exports = function(dir) {
-  return path.relative(dir, texturePath) + '/'
-}
-
-})("/node_modules/voxel-hello-world/node_modules/painterly-textures")
-},{"path":29}],25:[function(require,module,exports){
+},{"./xmlhttprequest":27}],25:[function(require,module,exports){
 module.exports = inherits
 
 function inherits (c, p, proto) {
@@ -5232,7 +5251,16 @@ function inherits (c, p, proto) {
 }).call(this);
 
 })()
-},{}],7:[function(require,module,exports){
+},{}],28:[function(require,module,exports){
+(function(__dirname){var path = require('path')
+var texturePath = __dirname + '/textures'
+
+module.exports = function(dir) {
+  return path.relative(dir, texturePath) + '/'
+}
+
+})("/node_modules/voxel-hello-world/node_modules/painterly-textures")
+},{"path":29}],7:[function(require,module,exports){
 var THREE = require('three')
 
 module.exports = function(data, mesher, scaleFactor, three) {
@@ -6312,7 +6340,43 @@ exports.relative = function(from, to) {
 };
 
 })(require("__browserify_process"))
-},{"__browserify_process":17}],30:[function(require,module,exports){
+},{"__browserify_process":17}],19:[function(require,module,exports){
+var EventEmitter = require('events').EventEmitter;
+var emitStream = require('emit-stream');
+
+function emitter(stream) {
+  // Read events from the client
+  var readEmitter = emitStream.fromStream(stream);
+
+  stream.on('error', function(err) {
+    readEmitter.emit('error', err);
+  });
+
+  // Write events to the client
+  var writeEmitter = new EventEmitter;
+  var writeStream = emitStream.toStream(writeEmitter);
+
+  writeStream.on('error', function(err) {
+    readEmitter.emit('error', err);
+  });
+
+  writeStream.pipe(stream);
+
+  var on = readEmitter.on.bind(readEmitter);
+
+  return {
+    on: on,
+    addListener: on,
+    once: readEmitter.once.bind(readEmitter),
+    removeListener: readEmitter.removeListener.bind(readEmitter),
+    emit: writeEmitter.emit.bind(writeEmitter),
+    writeEmitter: writeEmitter,
+    readEmitter: readEmitter
+  };
+}
+
+module.exports = emitter;
+},{"events":15,"emit-stream":36}],30:[function(require,module,exports){
 (function(process){
 var window = window || {};
 var self = self || {};
@@ -42868,43 +42932,7 @@ if (typeof exports !== 'undefined') {
 }
 
 })(require("__browserify_process"))
-},{"__browserify_process":17}],19:[function(require,module,exports){
-var EventEmitter = require('events').EventEmitter;
-var emitStream = require('emit-stream');
-
-function emitter(stream) {
-  // Read events from the client
-  var readEmitter = emitStream.fromStream(stream);
-
-  stream.on('error', function(err) {
-    readEmitter.emit('error', err);
-  });
-
-  // Write events to the client
-  var writeEmitter = new EventEmitter;
-  var writeStream = emitStream.toStream(writeEmitter);
-
-  writeStream.on('error', function(err) {
-    readEmitter.emit('error', err);
-  });
-
-  writeStream.pipe(stream);
-
-  var on = readEmitter.on.bind(readEmitter);
-
-  return {
-    on: on,
-    addListener: on,
-    once: readEmitter.once.bind(readEmitter),
-    removeListener: readEmitter.removeListener.bind(readEmitter),
-    emit: writeEmitter.emit.bind(writeEmitter),
-    writeEmitter: writeEmitter,
-    readEmitter: readEmitter
-  };
-}
-
-module.exports = emitter;
-},{"events":15,"emit-stream":36}],20:[function(require,module,exports){
+},{"__browserify_process":17}],21:[function(require,module,exports){
 var events = require('events')
 var inherits = require('inherits')
 
@@ -43076,7 +43104,7 @@ function toObjectDuplex(stream) {
 }
 
 module.exports = toObjectDuplex;
-},{"JSONStream":38,"duplexer":39}],31:[function(require,module,exports){
+},{"duplexer":38,"JSONStream":39}],31:[function(require,module,exports){
 var chunker = require('./chunker')
 
 module.exports = function(opts) {
@@ -43172,7 +43200,7 @@ module.exports.generateExamples = function() {
 }
 
 
-},{"./chunker":40,"./meshers/culled":41,"./meshers/monotone":42,"./meshers/greedy":43,"./meshers/stupid":44}],37:[function(require,module,exports){
+},{"./chunker":40,"./meshers/culled":41,"./meshers/greedy":42,"./meshers/monotone":43,"./meshers/stupid":44}],37:[function(require,module,exports){
 module.exports = inherits
 
 function inherits (c, p, proto) {
@@ -43203,7 +43231,7 @@ function inherits (c, p, proto) {
 //inherits(Child, Parent)
 //new Child
 
-},{}],39:[function(require,module,exports){
+},{}],38:[function(require,module,exports){
 var Stream = require("stream")
     , writeMethods = ["write", "end", "destroy"]
     , readMethods = ["resume", "pause"]
@@ -43344,6 +43372,123 @@ if(exports) {
 }
 
 },{}],42:[function(require,module,exports){
+var GreedyMesh = (function() {
+//Cache buffer internally
+var mask = new Int32Array(4096);
+
+return function(volume, dims) {
+  var vertices = [], faces = []
+    , dimsX = dims[0]
+    , dimsY = dims[1]
+    , dimsXY = dimsX * dimsY;
+
+  //Sweep over 3-axes
+  for(var d=0; d<3; ++d) {
+    var i, j, k, l, w, W, h, n, c
+      , u = (d+1)%3
+      , v = (d+2)%3
+      , x = [0,0,0]
+      , q = [0,0,0]
+      , du = [0,0,0]
+      , dv = [0,0,0]
+      , dimsD = dims[d]
+      , dimsU = dims[u]
+      , dimsV = dims[v]
+      , qdimsX, qdimsXY
+      , xd
+
+    if (mask.length < dimsU * dimsV) {
+      mask = new Int32Array(dimsU * dimsV);
+    }
+
+    q[d] =  1;
+    x[d] = -1;
+
+    qdimsX  = dimsX  * q[1]
+    qdimsXY = dimsXY * q[2]
+
+    // Compute mask
+    while (x[d] < dimsD) {
+      xd = x[d]
+      n = 0;
+
+      for(x[v] = 0; x[v] < dimsV; ++x[v]) {
+        for(x[u] = 0; x[u] < dimsU; ++x[u], ++n) {
+          var a = xd >= 0      && volume[x[0]      + dimsX * x[1]          + dimsXY * x[2]          ]
+            , b = xd < dimsD-1 && volume[x[0]+q[0] + dimsX * x[1] + qdimsX + dimsXY * x[2] + qdimsXY]
+          if (a ? b : !b) {
+            mask[n] = 0; continue;
+          }
+          mask[n] = a ? a : -b;
+        }
+      }
+
+      ++x[d];
+
+      // Generate mesh for mask using lexicographic ordering
+      n = 0;
+      for (j=0; j < dimsV; ++j) {
+        for (i=0; i < dimsU; ) {
+          c = mask[n];
+          if (!c) {
+            i++;  n++; continue;
+          }
+
+          //Compute width
+          w = 1;
+          while (c === mask[n+w] && i+w < dimsU) w++;
+
+          //Compute height (this is slightly awkward)
+          for (h=1; j+h < dimsV; ++h) {
+            k = 0;
+            while (k < w && c === mask[n+k+h*dimsU]) k++
+            if (k < w) break;
+          }
+
+          // Add quad
+          // The du/dv arrays are reused/reset
+          // for each iteration.
+          du[d] = 0; dv[d] = 0;
+          x[u]  = i;  x[v] = j;
+
+          if (c > 0) {
+            dv[v] = h; dv[u] = 0;
+            du[u] = w; du[v] = 0;
+          } else {
+            c = -c;
+            du[v] = h; du[u] = 0;
+            dv[u] = w; dv[v] = 0;
+          }
+          var vertex_count = vertices.length;
+          vertices.push([x[0],             x[1],             x[2]            ]);
+          vertices.push([x[0]+du[0],       x[1]+du[1],       x[2]+du[2]      ]);
+          vertices.push([x[0]+du[0]+dv[0], x[1]+du[1]+dv[1], x[2]+du[2]+dv[2]]);
+          vertices.push([x[0]      +dv[0], x[1]      +dv[1], x[2]      +dv[2]]);
+          faces.push([vertex_count, vertex_count+1, vertex_count+2, vertex_count+3, c]);
+
+          //Zero-out mask
+          W = n + w;
+          for(l=0; l<h; ++l) {
+            for(k=n; k<W; ++k) {
+              mask[k+l*dimsU] = 0;
+            }
+          }
+
+          //Increment counters and continue
+          i += w; n += w;
+        }
+      }
+    }
+  }
+  return { vertices:vertices, faces:faces };
+}
+})();
+
+if(exports) {
+  exports.mesher = GreedyMesh;
+}
+
+},{}],43:[function(require,module,exports){
 "use strict";
 
 var MonotoneMesh = (function(){
@@ -43594,123 +43739,6 @@ return function(volume, dims) {
 
 if(exports) {
   exports.mesher = MonotoneMesh;
-}
-
-},{}],43:[function(require,module,exports){
-var GreedyMesh = (function() {
-//Cache buffer internally
-var mask = new Int32Array(4096);
-
-return function(volume, dims) {
-  var vertices = [], faces = []
-    , dimsX = dims[0]
-    , dimsY = dims[1]
-    , dimsXY = dimsX * dimsY;
-
-  //Sweep over 3-axes
-  for(var d=0; d<3; ++d) {
-    var i, j, k, l, w, W, h, n, c
-      , u = (d+1)%3
-      , v = (d+2)%3
-      , x = [0,0,0]
-      , q = [0,0,0]
-      , du = [0,0,0]
-      , dv = [0,0,0]
-      , dimsD = dims[d]
-      , dimsU = dims[u]
-      , dimsV = dims[v]
-      , qdimsX, qdimsXY
-      , xd
-
-    if (mask.length < dimsU * dimsV) {
-      mask = new Int32Array(dimsU * dimsV);
-    }
-
-    q[d] =  1;
-    x[d] = -1;
-
-    qdimsX  = dimsX  * q[1]
-    qdimsXY = dimsXY * q[2]
-
-    // Compute mask
-    while (x[d] < dimsD) {
-      xd = x[d]
-      n = 0;
-
-      for(x[v] = 0; x[v] < dimsV; ++x[v]) {
-        for(x[u] = 0; x[u] < dimsU; ++x[u], ++n) {
-          var a = xd >= 0      && volume[x[0]      + dimsX * x[1]          + dimsXY * x[2]          ]
-            , b = xd < dimsD-1 && volume[x[0]+q[0] + dimsX * x[1] + qdimsX + dimsXY * x[2] + qdimsXY]
-          if (a ? b : !b) {
-            mask[n] = 0; continue;
-          }
-          mask[n] = a ? a : -b;
-        }
-      }
-
-      ++x[d];
-
-      // Generate mesh for mask using lexicographic ordering
-      n = 0;
-      for (j=0; j < dimsV; ++j) {
-        for (i=0; i < dimsU; ) {
-          c = mask[n];
-          if (!c) {
-            i++;  n++; continue;
-          }
-
-          //Compute width
-          w = 1;
-          while (c === mask[n+w] && i+w < dimsU) w++;
-
-          //Compute height (this is slightly awkward)
-          for (h=1; j+h < dimsV; ++h) {
-            k = 0;
-            while (k < w && c === mask[n+k+h*dimsU]) k++
-            if (k < w) break;
-          }
-
-          // Add quad
-          // The du/dv arrays are reused/reset
-          // for each iteration.
-          du[d] = 0; dv[d] = 0;
-          x[u]  = i;  x[v] = j;
-
-          if (c > 0) {
-            dv[v] = h; dv[u] = 0;
-            du[u] = w; du[v] = 0;
-          } else {
-            c = -c;
-            du[v] = h; du[u] = 0;
-            dv[u] = w; dv[v] = 0;
-          }
-          var vertex_count = vertices.length;
-          vertices.push([x[0],             x[1],             x[2]            ]);
-          vertices.push([x[0]+du[0],       x[1]+du[1],       x[2]+du[2]      ]);
-          vertices.push([x[0]+du[0]+dv[0], x[1]+du[1]+dv[1], x[2]+du[2]+dv[2]]);
-          vertices.push([x[0]      +dv[0], x[1]      +dv[1], x[2]      +dv[2]]);
-          faces.push([vertex_count, vertex_count+1, vertex_count+2, vertex_count+3, c]);
-
-          //Zero-out mask
-          W = n + w;
-          for(l=0; l<h; ++l) {
-            for(k=n; k<W; ++k) {
-              mask[k+l*dimsU] = 0;
-            }
-          }
-
-          //Increment counters and continue
-          i += w; n += w;
-        }
-      }
-    }
-  }
-  return { vertices:vertices, faces:faces };
-}
-})();
-
-if(exports) {
-  exports.mesher = GreedyMesh;
 }
 
 },{}],44:[function(require,module,exports){
@@ -54030,7 +54058,7 @@ SlowBuffer.prototype.writeDoubleBE = Buffer.prototype.writeDoubleBE;
 },{}]},{},[])
 ;;module.exports=require("buffer-browserify")
 
-},{}],38:[function(require,module,exports){
+},{}],39:[function(require,module,exports){
 (function(process,Buffer){var Parser = require('jsonparse')
   , Stream = require('stream').Stream
   , through = require('through')
@@ -55277,7 +55305,7 @@ function usedrag(el) {
   return ee
 }
 
-},{"events":15,"stream":16,"pointer-lock":76,"drag-stream":77,"fullscreen":78}],64:[function(require,module,exports){
+},{"events":15,"stream":16,"pointer-lock":76,"fullscreen":77,"drag-stream":78}],64:[function(require,module,exports){
 var ever = require('ever')
   , vkey = require('vkey')
   , max = Math.max
@@ -55864,7 +55892,7 @@ function shim(el) {
     null
 }
 
-},{"events":15,"stream":16}],78:[function(require,module,exports){
+},{"events":15,"stream":16}],77:[function(require,module,exports){
 module.exports = fullscreen
 fullscreen.available = available
 
@@ -57923,7 +57951,7 @@ proto.send = function(event, bbox, args) {
   }
 }
 
-},{"aabb-3d":62}],77:[function(require,module,exports){
+},{"aabb-3d":62}],78:[function(require,module,exports){
 module.exports = dragstream
 
 var Stream = require('stream')
@@ -58213,7 +58241,7 @@ ChunkMatrix.prototype._update = function (ci) {
     this.emit('update', chunk, ckey);
 };
 
-},{"events":15,"./indexer":73,"voxel":75,"voxel-mesh":93,"inherits":54}],91:[function(require,module,exports){
+},{"events":15,"./indexer":73,"voxel-mesh":93,"voxel":75,"inherits":54}],91:[function(require,module,exports){
 module.exports = require('./lib/index')
 
 },{"./lib/index":94}],86:[function(require,module,exports){
@@ -58362,7 +58390,7 @@ DOMStream.createEventStream = function(el, type, preventDefault) {
 module.exports = DOMStream
 
 
-},{"./readable":95,"./writable":96}],95:[function(require,module,exports){
+},{"./writable":95,"./readable":96}],96:[function(require,module,exports){
 module.exports = DOMStream
 
 var Stream = require('stream').Stream
@@ -58471,7 +58499,7 @@ function valueFromElement(el) {
   return el.value
 }
 
-},{"stream":16}],96:[function(require,module,exports){
+},{"stream":16}],95:[function(require,module,exports){
 module.exports = DOMStream
 
 var Stream = require('stream').Stream
