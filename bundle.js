@@ -132,7 +132,6 @@ var websocket = require('websocket-stream')
 var duplexEmitter = require('duplex-emitter')
 var skin = require('minecraft-skin')
 var _ = require('underscore')
-var api = 'p2plobby.jit.su'
 var lerpPercent = 0.1
 var updateRate = 50
 var updateBufferSize = 5
@@ -146,10 +145,11 @@ function boot() {
   }
 
   var id = ~~(Math.random() * 10000) + '' + ~~(Math.random() * 10000)
-  var peer = new Peer(id, {host: api, port: 9000})
-  window.peer = peer
-  
-  var socket = websocket('ws://' + api + ':8080')
+  var peer = new Peer(id, {host: 'peerjs-maxogden.jit.su', port: 80})
+  // var peer = new Peer(id, {host: 'pizzacats.local', port: 9000})
+  var socket = websocket('ws://p2plobby.jit.su')
+  // var socket = websocket('ws://pizzacats.local:8080')
+  window.peer = peer  
   var emitter = duplexEmitter(socket)
 
   var b = [[-64, -32], [64, 32]]
@@ -2851,7 +2851,7 @@ function duplexToEmitter(duplexStream) {
 }
 
 module.exports = duplexToEmitter;
-},{"./emitter":18,"./object_duplex_stream":19}],8:[function(require,module,exports){
+},{"./object_duplex_stream":18,"./emitter":19}],8:[function(require,module,exports){
 var chunker = require('./chunker')
 
 module.exports = function(opts) {
@@ -2947,7 +2947,7 @@ module.exports.generateExamples = function() {
 }
 
 
-},{"./meshers/culled":20,"./chunker":21,"./meshers/greedy":22,"./meshers/monotone":23,"./meshers/stupid":24}],20:[function(require,module,exports){
+},{"./chunker":20,"./meshers/culled":21,"./meshers/greedy":22,"./meshers/monotone":23,"./meshers/stupid":24}],21:[function(require,module,exports){
 //Naive meshing (with face culling)
 function CulledMesh(volume, dims) {
   //Precalculate direction vectors for convenience
@@ -4003,177 +4003,7 @@ function inherits (c, p, proto) {
 //inherits(Child, Parent)
 //new Child
 
-},{}],7:[function(require,module,exports){
-var THREE = require('three')
-
-module.exports = function(data, mesher, scaleFactor, three) {
-  return new Mesh(data, mesher, scaleFactor, three)
-}
-
-module.exports.Mesh = Mesh
-
-function Mesh(data, mesher, scaleFactor, three) {
-  this.THREE = three || THREE
-  this.data = data
-  var geometry = this.geometry = new this.THREE.Geometry()
-  this.scale = scaleFactor || new this.THREE.Vector3(10, 10, 10)
-  
-  var result = mesher( data.voxels, data.dims )
-  this.meshed = result
-
-  geometry.vertices.length = 0
-  geometry.faces.length = 0
-
-  for (var i = 0; i < result.vertices.length; ++i) {
-    var q = result.vertices[i]
-    geometry.vertices.push(new this.THREE.Vector3(q[0], q[1], q[2]))
-  } 
-  
-  for (var i = 0; i < result.faces.length; ++i) {
-    geometry.faceVertexUvs[0].push(this.faceVertexUv(i))
-    
-    var q = result.faces[i]
-    if (q.length === 5) {
-      var f = new this.THREE.Face4(q[0], q[1], q[2], q[3])
-      f.color = new this.THREE.Color(q[4])
-      geometry.faces.push(f)
-    } else if (q.length == 4) {
-      var f = new this.THREE.Face3(q[0], q[1], q[2])
-      f.color = new this.THREE.Color(q[3])
-      geometry.faces.push(f)
-    }
-  }
-  
-  geometry.computeFaceNormals()
-
-  // compute vertex colors for ambient occlusion
-  var light = new THREE.Color(0xffffff)
-  var shadow = new THREE.Color(0x505050)
-  for (var i = 0; i < geometry.faces.length; ++i) {
-    var face = geometry.faces[i]
-    // facing up
-    if (face.normal.y === 1)       face.vertexColors = [light, light, light, light]
-    // facing down
-    else if (face.normal.y === -1) face.vertexColors = [shadow, shadow, shadow, shadow]
-    // facing right
-    else if (face.normal.x === 1)  face.vertexColors = [shadow, light, light, shadow]
-    // facing left
-    else if (face.normal.x === -1) face.vertexColors = [shadow, shadow, light, light]
-    // facing backward
-    else if (face.normal.z === 1)  face.vertexColors = [shadow, shadow, light, light]
-    // facing forward
-    else                           face.vertexColors = [shadow, light, light, shadow]
-  }
-
-  geometry.verticesNeedUpdate = true
-  geometry.elementsNeedUpdate = true
-  geometry.normalsNeedUpdate = true
-
-  geometry.computeBoundingBox()
-  geometry.computeBoundingSphere()
-
-}
-
-Mesh.prototype.createWireMesh = function(hexColor) {    
-  var wireMaterial = new this.THREE.MeshBasicMaterial({
-    color : hexColor || 0xffffff,
-    wireframe : true
-  })
-  wireMesh = new THREE.Mesh(this.geometry, wireMaterial)
-  wireMesh.scale = this.scale
-  wireMesh.doubleSided = true
-  this.wireMesh = wireMesh
-  return wireMesh
-}
-
-Mesh.prototype.createSurfaceMesh = function(material) {
-  material = material || new this.THREE.MeshNormalMaterial()
-  var surfaceMesh  = new this.THREE.Mesh( this.geometry, material )
-  surfaceMesh.scale = this.scale
-  surfaceMesh.doubleSided = false
-  this.surfaceMesh = surfaceMesh
-  return surfaceMesh
-}
-
-Mesh.prototype.addToScene = function(scene) {
-  if (this.wireMesh) scene.add( this.wireMesh )
-  if (this.surfaceMesh) scene.add( this.surfaceMesh )
-}
-
-Mesh.prototype.setPosition = function(x, y, z) {
-  if (this.wireMesh) this.wireMesh.position = new this.THREE.Vector3(x, y, z)
-  if (this.surfaceMesh) this.surfaceMesh.position = new this.THREE.Vector3(x, y, z)
-}
-
-Mesh.prototype.faceVertexUv = function(i) {
-  var vs = [
-    this.meshed.vertices[i*4+0],
-    this.meshed.vertices[i*4+1],
-    this.meshed.vertices[i*4+2],
-    this.meshed.vertices[i*4+3]
-  ]
-  var spans = {
-    x0: vs[0][0] - vs[1][0],
-    x1: vs[1][0] - vs[2][0],
-    y0: vs[0][1] - vs[1][1],
-    y1: vs[1][1] - vs[2][1],
-    z0: vs[0][2] - vs[1][2],
-    z1: vs[1][2] - vs[2][2]
-  }
-  var size = {
-    x: Math.max(Math.abs(spans.x0), Math.abs(spans.x1)),
-    y: Math.max(Math.abs(spans.y0), Math.abs(spans.y1)),
-    z: Math.max(Math.abs(spans.z0), Math.abs(spans.z1))
-  }
-  if (size.x === 0) {
-    if (spans.y0 > spans.y1) {
-      var width = size.y
-      var height = size.z
-    }
-    else {
-      var width = size.z
-      var height = size.y
-    }
-  }
-  if (size.y === 0) {
-    if (spans.x0 > spans.x1) {
-      var width = size.x
-      var height = size.z
-    }
-    else {
-      var width = size.z
-      var height = size.x
-    }
-  }
-  if (size.z === 0) {
-    if (spans.x0 > spans.x1) {
-      var width = size.x
-      var height = size.y
-    }
-    else {
-      var width = size.y
-      var height = size.x
-    }
-  }
-  if ((size.z === 0 && spans.x0 < spans.x1) || (size.x === 0 && spans.y0 > spans.y1)) {
-    return [
-      new this.THREE.Vector2(height, 0),
-      new this.THREE.Vector2(0, 0),
-      new this.THREE.Vector2(0, width),
-      new this.THREE.Vector2(height, width)
-    ]
-  } else {
-    return [
-      new this.THREE.Vector2(0, 0),
-      new this.THREE.Vector2(0, height),
-      new this.THREE.Vector2(width, height),
-      new this.THREE.Vector2(width, 0)
-    ]
-  }
-}
-;
-
-},{"three":30}],26:[function(require,module,exports){
+},{}],26:[function(require,module,exports){
 (function(){//     Underscore.js 1.4.4
 //     http://underscorejs.org
 //     (c) 2009-2013 Jeremy Ashkenas, DocumentCloud Inc.
@@ -5402,7 +5232,177 @@ Mesh.prototype.faceVertexUv = function(i) {
 }).call(this);
 
 })()
-},{}],27:[function(require,module,exports){
+},{}],7:[function(require,module,exports){
+var THREE = require('three')
+
+module.exports = function(data, mesher, scaleFactor, three) {
+  return new Mesh(data, mesher, scaleFactor, three)
+}
+
+module.exports.Mesh = Mesh
+
+function Mesh(data, mesher, scaleFactor, three) {
+  this.THREE = three || THREE
+  this.data = data
+  var geometry = this.geometry = new this.THREE.Geometry()
+  this.scale = scaleFactor || new this.THREE.Vector3(10, 10, 10)
+  
+  var result = mesher( data.voxels, data.dims )
+  this.meshed = result
+
+  geometry.vertices.length = 0
+  geometry.faces.length = 0
+
+  for (var i = 0; i < result.vertices.length; ++i) {
+    var q = result.vertices[i]
+    geometry.vertices.push(new this.THREE.Vector3(q[0], q[1], q[2]))
+  } 
+  
+  for (var i = 0; i < result.faces.length; ++i) {
+    geometry.faceVertexUvs[0].push(this.faceVertexUv(i))
+    
+    var q = result.faces[i]
+    if (q.length === 5) {
+      var f = new this.THREE.Face4(q[0], q[1], q[2], q[3])
+      f.color = new this.THREE.Color(q[4])
+      geometry.faces.push(f)
+    } else if (q.length == 4) {
+      var f = new this.THREE.Face3(q[0], q[1], q[2])
+      f.color = new this.THREE.Color(q[3])
+      geometry.faces.push(f)
+    }
+  }
+  
+  geometry.computeFaceNormals()
+
+  // compute vertex colors for ambient occlusion
+  var light = new THREE.Color(0xffffff)
+  var shadow = new THREE.Color(0x505050)
+  for (var i = 0; i < geometry.faces.length; ++i) {
+    var face = geometry.faces[i]
+    // facing up
+    if (face.normal.y === 1)       face.vertexColors = [light, light, light, light]
+    // facing down
+    else if (face.normal.y === -1) face.vertexColors = [shadow, shadow, shadow, shadow]
+    // facing right
+    else if (face.normal.x === 1)  face.vertexColors = [shadow, light, light, shadow]
+    // facing left
+    else if (face.normal.x === -1) face.vertexColors = [shadow, shadow, light, light]
+    // facing backward
+    else if (face.normal.z === 1)  face.vertexColors = [shadow, shadow, light, light]
+    // facing forward
+    else                           face.vertexColors = [shadow, light, light, shadow]
+  }
+
+  geometry.verticesNeedUpdate = true
+  geometry.elementsNeedUpdate = true
+  geometry.normalsNeedUpdate = true
+
+  geometry.computeBoundingBox()
+  geometry.computeBoundingSphere()
+
+}
+
+Mesh.prototype.createWireMesh = function(hexColor) {    
+  var wireMaterial = new this.THREE.MeshBasicMaterial({
+    color : hexColor || 0xffffff,
+    wireframe : true
+  })
+  wireMesh = new THREE.Mesh(this.geometry, wireMaterial)
+  wireMesh.scale = this.scale
+  wireMesh.doubleSided = true
+  this.wireMesh = wireMesh
+  return wireMesh
+}
+
+Mesh.prototype.createSurfaceMesh = function(material) {
+  material = material || new this.THREE.MeshNormalMaterial()
+  var surfaceMesh  = new this.THREE.Mesh( this.geometry, material )
+  surfaceMesh.scale = this.scale
+  surfaceMesh.doubleSided = false
+  this.surfaceMesh = surfaceMesh
+  return surfaceMesh
+}
+
+Mesh.prototype.addToScene = function(scene) {
+  if (this.wireMesh) scene.add( this.wireMesh )
+  if (this.surfaceMesh) scene.add( this.surfaceMesh )
+}
+
+Mesh.prototype.setPosition = function(x, y, z) {
+  if (this.wireMesh) this.wireMesh.position = new this.THREE.Vector3(x, y, z)
+  if (this.surfaceMesh) this.surfaceMesh.position = new this.THREE.Vector3(x, y, z)
+}
+
+Mesh.prototype.faceVertexUv = function(i) {
+  var vs = [
+    this.meshed.vertices[i*4+0],
+    this.meshed.vertices[i*4+1],
+    this.meshed.vertices[i*4+2],
+    this.meshed.vertices[i*4+3]
+  ]
+  var spans = {
+    x0: vs[0][0] - vs[1][0],
+    x1: vs[1][0] - vs[2][0],
+    y0: vs[0][1] - vs[1][1],
+    y1: vs[1][1] - vs[2][1],
+    z0: vs[0][2] - vs[1][2],
+    z1: vs[1][2] - vs[2][2]
+  }
+  var size = {
+    x: Math.max(Math.abs(spans.x0), Math.abs(spans.x1)),
+    y: Math.max(Math.abs(spans.y0), Math.abs(spans.y1)),
+    z: Math.max(Math.abs(spans.z0), Math.abs(spans.z1))
+  }
+  if (size.x === 0) {
+    if (spans.y0 > spans.y1) {
+      var width = size.y
+      var height = size.z
+    }
+    else {
+      var width = size.z
+      var height = size.y
+    }
+  }
+  if (size.y === 0) {
+    if (spans.x0 > spans.x1) {
+      var width = size.x
+      var height = size.z
+    }
+    else {
+      var width = size.z
+      var height = size.x
+    }
+  }
+  if (size.z === 0) {
+    if (spans.x0 > spans.x1) {
+      var width = size.x
+      var height = size.y
+    }
+    else {
+      var width = size.y
+      var height = size.x
+    }
+  }
+  if ((size.z === 0 && spans.x0 < spans.x1) || (size.x === 0 && spans.y0 > spans.y1)) {
+    return [
+      new this.THREE.Vector2(height, 0),
+      new this.THREE.Vector2(0, 0),
+      new this.THREE.Vector2(0, width),
+      new this.THREE.Vector2(height, width)
+    ]
+  } else {
+    return [
+      new this.THREE.Vector2(0, 0),
+      new this.THREE.Vector2(0, height),
+      new this.THREE.Vector2(width, height),
+      new this.THREE.Vector2(width, 0)
+    ]
+  }
+}
+;
+
+},{"three":30}],27:[function(require,module,exports){
 (function(){
 
 !function(window) {
@@ -6312,43 +6312,7 @@ exports.relative = function(from, to) {
 };
 
 })(require("__browserify_process"))
-},{"__browserify_process":17}],18:[function(require,module,exports){
-var EventEmitter = require('events').EventEmitter;
-var emitStream = require('emit-stream');
-
-function emitter(stream) {
-  // Read events from the client
-  var readEmitter = emitStream.fromStream(stream);
-
-  stream.on('error', function(err) {
-    readEmitter.emit('error', err);
-  });
-
-  // Write events to the client
-  var writeEmitter = new EventEmitter;
-  var writeStream = emitStream.toStream(writeEmitter);
-
-  writeStream.on('error', function(err) {
-    readEmitter.emit('error', err);
-  });
-
-  writeStream.pipe(stream);
-
-  var on = readEmitter.on.bind(readEmitter);
-
-  return {
-    on: on,
-    addListener: on,
-    once: readEmitter.once.bind(readEmitter),
-    removeListener: readEmitter.removeListener.bind(readEmitter),
-    emit: writeEmitter.emit.bind(writeEmitter),
-    writeEmitter: writeEmitter,
-    readEmitter: readEmitter
-  };
-}
-
-module.exports = emitter;
-},{"events":15,"emit-stream":36}],30:[function(require,module,exports){
+},{"__browserify_process":17}],30:[function(require,module,exports){
 (function(process){
 var window = window || {};
 var self = self || {};
@@ -42904,7 +42868,43 @@ if (typeof exports !== 'undefined') {
 }
 
 })(require("__browserify_process"))
-},{"__browserify_process":17}],21:[function(require,module,exports){
+},{"__browserify_process":17}],19:[function(require,module,exports){
+var EventEmitter = require('events').EventEmitter;
+var emitStream = require('emit-stream');
+
+function emitter(stream) {
+  // Read events from the client
+  var readEmitter = emitStream.fromStream(stream);
+
+  stream.on('error', function(err) {
+    readEmitter.emit('error', err);
+  });
+
+  // Write events to the client
+  var writeEmitter = new EventEmitter;
+  var writeStream = emitStream.toStream(writeEmitter);
+
+  writeStream.on('error', function(err) {
+    readEmitter.emit('error', err);
+  });
+
+  writeStream.pipe(stream);
+
+  var on = readEmitter.on.bind(readEmitter);
+
+  return {
+    on: on,
+    addListener: on,
+    once: readEmitter.once.bind(readEmitter),
+    removeListener: readEmitter.removeListener.bind(readEmitter),
+    emit: writeEmitter.emit.bind(writeEmitter),
+    writeEmitter: writeEmitter,
+    readEmitter: readEmitter
+  };
+}
+
+module.exports = emitter;
+},{"events":15,"emit-stream":36}],20:[function(require,module,exports){
 var events = require('events')
 var inherits = require('inherits')
 
@@ -43041,7 +43041,7 @@ Chunker.prototype.voxelVector = function(pos) {
   return [vx, vy, vz]
 };
 
-},{"events":15,"inherits":37}],19:[function(require,module,exports){
+},{"events":15,"inherits":37}],18:[function(require,module,exports){
 var JSONStream = require('JSONStream');
 var duplexer = require('duplexer');
 
@@ -43172,7 +43172,7 @@ module.exports.generateExamples = function() {
 }
 
 
-},{"./chunker":40,"./meshers/culled":41,"./meshers/greedy":42,"./meshers/monotone":43,"./meshers/stupid":44}],37:[function(require,module,exports){
+},{"./chunker":40,"./meshers/culled":41,"./meshers/monotone":42,"./meshers/greedy":43,"./meshers/stupid":44}],37:[function(require,module,exports){
 module.exports = inherits
 
 function inherits (c, p, proto) {
@@ -43344,123 +43344,6 @@ if(exports) {
 }
 
 },{}],42:[function(require,module,exports){
-var GreedyMesh = (function() {
-//Cache buffer internally
-var mask = new Int32Array(4096);
-
-return function(volume, dims) {
-  var vertices = [], faces = []
-    , dimsX = dims[0]
-    , dimsY = dims[1]
-    , dimsXY = dimsX * dimsY;
-
-  //Sweep over 3-axes
-  for(var d=0; d<3; ++d) {
-    var i, j, k, l, w, W, h, n, c
-      , u = (d+1)%3
-      , v = (d+2)%3
-      , x = [0,0,0]
-      , q = [0,0,0]
-      , du = [0,0,0]
-      , dv = [0,0,0]
-      , dimsD = dims[d]
-      , dimsU = dims[u]
-      , dimsV = dims[v]
-      , qdimsX, qdimsXY
-      , xd
-
-    if (mask.length < dimsU * dimsV) {
-      mask = new Int32Array(dimsU * dimsV);
-    }
-
-    q[d] =  1;
-    x[d] = -1;
-
-    qdimsX  = dimsX  * q[1]
-    qdimsXY = dimsXY * q[2]
-
-    // Compute mask
-    while (x[d] < dimsD) {
-      xd = x[d]
-      n = 0;
-
-      for(x[v] = 0; x[v] < dimsV; ++x[v]) {
-        for(x[u] = 0; x[u] < dimsU; ++x[u], ++n) {
-          var a = xd >= 0      && volume[x[0]      + dimsX * x[1]          + dimsXY * x[2]          ]
-            , b = xd < dimsD-1 && volume[x[0]+q[0] + dimsX * x[1] + qdimsX + dimsXY * x[2] + qdimsXY]
-          if (a ? b : !b) {
-            mask[n] = 0; continue;
-          }
-          mask[n] = a ? a : -b;
-        }
-      }
-
-      ++x[d];
-
-      // Generate mesh for mask using lexicographic ordering
-      n = 0;
-      for (j=0; j < dimsV; ++j) {
-        for (i=0; i < dimsU; ) {
-          c = mask[n];
-          if (!c) {
-            i++;  n++; continue;
-          }
-
-          //Compute width
-          w = 1;
-          while (c === mask[n+w] && i+w < dimsU) w++;
-
-          //Compute height (this is slightly awkward)
-          for (h=1; j+h < dimsV; ++h) {
-            k = 0;
-            while (k < w && c === mask[n+k+h*dimsU]) k++
-            if (k < w) break;
-          }
-
-          // Add quad
-          // The du/dv arrays are reused/reset
-          // for each iteration.
-          du[d] = 0; dv[d] = 0;
-          x[u]  = i;  x[v] = j;
-
-          if (c > 0) {
-            dv[v] = h; dv[u] = 0;
-            du[u] = w; du[v] = 0;
-          } else {
-            c = -c;
-            du[v] = h; du[u] = 0;
-            dv[u] = w; dv[v] = 0;
-          }
-          var vertex_count = vertices.length;
-          vertices.push([x[0],             x[1],             x[2]            ]);
-          vertices.push([x[0]+du[0],       x[1]+du[1],       x[2]+du[2]      ]);
-          vertices.push([x[0]+du[0]+dv[0], x[1]+du[1]+dv[1], x[2]+du[2]+dv[2]]);
-          vertices.push([x[0]      +dv[0], x[1]      +dv[1], x[2]      +dv[2]]);
-          faces.push([vertex_count, vertex_count+1, vertex_count+2, vertex_count+3, c]);
-
-          //Zero-out mask
-          W = n + w;
-          for(l=0; l<h; ++l) {
-            for(k=n; k<W; ++k) {
-              mask[k+l*dimsU] = 0;
-            }
-          }
-
-          //Increment counters and continue
-          i += w; n += w;
-        }
-      }
-    }
-  }
-  return { vertices:vertices, faces:faces };
-}
-})();
-
-if(exports) {
-  exports.mesher = GreedyMesh;
-}
-
-},{}],43:[function(require,module,exports){
 "use strict";
 
 var MonotoneMesh = (function(){
@@ -43711,6 +43594,123 @@ return function(volume, dims) {
 
 if(exports) {
   exports.mesher = MonotoneMesh;
+}
+
+},{}],43:[function(require,module,exports){
+var GreedyMesh = (function() {
+//Cache buffer internally
+var mask = new Int32Array(4096);
+
+return function(volume, dims) {
+  var vertices = [], faces = []
+    , dimsX = dims[0]
+    , dimsY = dims[1]
+    , dimsXY = dimsX * dimsY;
+
+  //Sweep over 3-axes
+  for(var d=0; d<3; ++d) {
+    var i, j, k, l, w, W, h, n, c
+      , u = (d+1)%3
+      , v = (d+2)%3
+      , x = [0,0,0]
+      , q = [0,0,0]
+      , du = [0,0,0]
+      , dv = [0,0,0]
+      , dimsD = dims[d]
+      , dimsU = dims[u]
+      , dimsV = dims[v]
+      , qdimsX, qdimsXY
+      , xd
+
+    if (mask.length < dimsU * dimsV) {
+      mask = new Int32Array(dimsU * dimsV);
+    }
+
+    q[d] =  1;
+    x[d] = -1;
+
+    qdimsX  = dimsX  * q[1]
+    qdimsXY = dimsXY * q[2]
+
+    // Compute mask
+    while (x[d] < dimsD) {
+      xd = x[d]
+      n = 0;
+
+      for(x[v] = 0; x[v] < dimsV; ++x[v]) {
+        for(x[u] = 0; x[u] < dimsU; ++x[u], ++n) {
+          var a = xd >= 0      && volume[x[0]      + dimsX * x[1]          + dimsXY * x[2]          ]
+            , b = xd < dimsD-1 && volume[x[0]+q[0] + dimsX * x[1] + qdimsX + dimsXY * x[2] + qdimsXY]
+          if (a ? b : !b) {
+            mask[n] = 0; continue;
+          }
+          mask[n] = a ? a : -b;
+        }
+      }
+
+      ++x[d];
+
+      // Generate mesh for mask using lexicographic ordering
+      n = 0;
+      for (j=0; j < dimsV; ++j) {
+        for (i=0; i < dimsU; ) {
+          c = mask[n];
+          if (!c) {
+            i++;  n++; continue;
+          }
+
+          //Compute width
+          w = 1;
+          while (c === mask[n+w] && i+w < dimsU) w++;
+
+          //Compute height (this is slightly awkward)
+          for (h=1; j+h < dimsV; ++h) {
+            k = 0;
+            while (k < w && c === mask[n+k+h*dimsU]) k++
+            if (k < w) break;
+          }
+
+          // Add quad
+          // The du/dv arrays are reused/reset
+          // for each iteration.
+          du[d] = 0; dv[d] = 0;
+          x[u]  = i;  x[v] = j;
+
+          if (c > 0) {
+            dv[v] = h; dv[u] = 0;
+            du[u] = w; du[v] = 0;
+          } else {
+            c = -c;
+            du[v] = h; du[u] = 0;
+            dv[u] = w; dv[v] = 0;
+          }
+          var vertex_count = vertices.length;
+          vertices.push([x[0],             x[1],             x[2]            ]);
+          vertices.push([x[0]+du[0],       x[1]+du[1],       x[2]+du[2]      ]);
+          vertices.push([x[0]+du[0]+dv[0], x[1]+du[1]+dv[1], x[2]+du[2]+dv[2]]);
+          vertices.push([x[0]      +dv[0], x[1]      +dv[1], x[2]      +dv[2]]);
+          faces.push([vertex_count, vertex_count+1, vertex_count+2, vertex_count+3, c]);
+
+          //Zero-out mask
+          W = n + w;
+          for(l=0; l<h; ++l) {
+            for(k=n; k<W; ++k) {
+              mask[k+l*dimsU] = 0;
+            }
+          }
+
+          //Increment counters and continue
+          i += w; n += w;
+        }
+      }
+    }
+  }
+  return { vertices:vertices, faces:faces };
+}
+})();
+
+if(exports) {
+  exports.mesher = GreedyMesh;
 }
 
 },{}],44:[function(require,module,exports){
@@ -54213,7 +54213,7 @@ exports.stringifyObject = function (op, sep, cl) {
 }
 
 })(require("__browserify_process"),require("__browserify_buffer").Buffer)
-},{"stream":16,"through":70,"jsonparse":71,"__browserify_process":17,"__browserify_buffer":69}],40:[function(require,module,exports){
+},{"stream":16,"jsonparse":70,"through":71,"__browserify_process":17,"__browserify_buffer":69}],40:[function(require,module,exports){
 var events = require('events')
 var inherits = require('inherits')
 
@@ -54508,112 +54508,6 @@ function through (write, end) {
 
 })(require("__browserify_process"))
 },{"stream":16,"__browserify_process":17}],70:[function(require,module,exports){
-(function(process){var Stream = require('stream')
-
-// through
-//
-// a stream that does nothing but re-emit the input.
-// useful for aggregating a series of changing but not ending streams into one stream)
-
-
-
-exports = module.exports = through
-through.through = through
-
-//create a readable writable stream.
-
-function through (write, end) {
-  write = write || function (data) { this.queue(data) }
-  end = end || function () { this.queue(null) }
-
-  var ended = false, destroyed = false, buffer = []
-  var stream = new Stream()
-  stream.readable = stream.writable = true
-  stream.paused = false
-
-  stream.write = function (data) {
-    write.call(this, data)
-    return !stream.paused
-  }
-
-  function drain() {
-    while(buffer.length && !stream.paused) {
-      var data = buffer.shift()
-      if(null === data)
-        return stream.emit('end')
-      else
-        stream.emit('data', data)
-    }
-  }
-
-  stream.queue = stream.push = function (data) {
-    buffer.push(data)
-    drain()
-    return stream
-  }
-
-  //this will be registered as the first 'end' listener
-  //must call destroy next tick, to make sure we're after any
-  //stream piped from here.
-  //this is only a problem if end is not emitted synchronously.
-  //a nicer way to do this is to make sure this is the last listener for 'end'
-
-  stream.on('end', function () {
-    stream.readable = false
-    if(!stream.writable)
-      process.nextTick(function () {
-        stream.destroy()
-      })
-  })
-
-  function _end () {
-    stream.writable = false
-    end.call(stream)
-    if(!stream.readable)
-      stream.destroy()
-  }
-
-  stream.end = function (data) {
-    if(ended) return
-    ended = true
-    if(arguments.length) stream.write(data)
-    _end() // will emit or queue
-    return stream
-  }
-
-  stream.destroy = function () {
-    if(destroyed) return
-    destroyed = true
-    ended = true
-    buffer.length = 0
-    stream.writable = stream.readable = false
-    stream.emit('close')
-    return stream
-  }
-
-  stream.pause = function () {
-    if(stream.paused) return
-    stream.paused = true
-    stream.emit('pause')
-    return stream
-  }
-  stream.resume = function () {
-    if(stream.paused) {
-      stream.paused = false
-    }
-    drain()
-    //may have become paused again,
-    //as drain emits 'data'.
-    if(!stream.paused)
-      stream.emit('drain')
-    return stream
-  }
-  return stream
-}
-
-
-})(require("__browserify_process"))
-},{"stream":16,"__browserify_process":17}],71:[function(require,module,exports){
 (function(Buffer){/*global Buffer*/
 // Named constants with unique integer values
 var C = {};
@@ -55017,7 +54911,113 @@ proto.onToken = function (token, value) {
 module.exports = Parser;
 
 })(require("__browserify_buffer").Buffer)
-},{"__browserify_buffer":69}],72:[function(require,module,exports){
+},{"__browserify_buffer":69}],71:[function(require,module,exports){
+(function(process){var Stream = require('stream')
+
+// through
+//
+// a stream that does nothing but re-emit the input.
+// useful for aggregating a series of changing but not ending streams into one stream)
+
+
+
+exports = module.exports = through
+through.through = through
+
+//create a readable writable stream.
+
+function through (write, end) {
+  write = write || function (data) { this.queue(data) }
+  end = end || function () { this.queue(null) }
+
+  var ended = false, destroyed = false, buffer = []
+  var stream = new Stream()
+  stream.readable = stream.writable = true
+  stream.paused = false
+
+  stream.write = function (data) {
+    write.call(this, data)
+    return !stream.paused
+  }
+
+  function drain() {
+    while(buffer.length && !stream.paused) {
+      var data = buffer.shift()
+      if(null === data)
+        return stream.emit('end')
+      else
+        stream.emit('data', data)
+    }
+  }
+
+  stream.queue = stream.push = function (data) {
+    buffer.push(data)
+    drain()
+    return stream
+  }
+
+  //this will be registered as the first 'end' listener
+  //must call destroy next tick, to make sure we're after any
+  //stream piped from here.
+  //this is only a problem if end is not emitted synchronously.
+  //a nicer way to do this is to make sure this is the last listener for 'end'
+
+  stream.on('end', function () {
+    stream.readable = false
+    if(!stream.writable)
+      process.nextTick(function () {
+        stream.destroy()
+      })
+  })
+
+  function _end () {
+    stream.writable = false
+    end.call(stream)
+    if(!stream.readable)
+      stream.destroy()
+  }
+
+  stream.end = function (data) {
+    if(ended) return
+    ended = true
+    if(arguments.length) stream.write(data)
+    _end() // will emit or queue
+    return stream
+  }
+
+  stream.destroy = function () {
+    if(destroyed) return
+    destroyed = true
+    ended = true
+    buffer.length = 0
+    stream.writable = stream.readable = false
+    stream.emit('close')
+    return stream
+  }
+
+  stream.pause = function () {
+    if(stream.paused) return
+    stream.paused = true
+    stream.emit('pause')
+    return stream
+  }
+  stream.resume = function () {
+    if(stream.paused) {
+      stream.paused = false
+    }
+    drain()
+    //may have become paused again,
+    //as drain emits 'data'.
+    if(!stream.paused)
+      stream.emit('drain')
+    return stream
+  }
+  return stream
+}
+
+
+})(require("__browserify_process"))
+},{"stream":16,"__browserify_process":17}],72:[function(require,module,exports){
 module.exports = inherits
 
 function inherits (c, p, proto) {
@@ -58213,7 +58213,7 @@ ChunkMatrix.prototype._update = function (ci) {
     this.emit('update', chunk, ckey);
 };
 
-},{"events":15,"./indexer":73,"voxel-mesh":93,"voxel":75,"inherits":54}],91:[function(require,module,exports){
+},{"events":15,"./indexer":73,"voxel":75,"voxel-mesh":93,"inherits":54}],91:[function(require,module,exports){
 module.exports = require('./lib/index')
 
 },{"./lib/index":94}],86:[function(require,module,exports){
@@ -58362,89 +58362,7 @@ DOMStream.createEventStream = function(el, type, preventDefault) {
 module.exports = DOMStream
 
 
-},{"./writable":95,"./readable":96}],95:[function(require,module,exports){
-module.exports = DOMStream
-
-var Stream = require('stream').Stream
-
-function DOMStream(el, mode, mimetype) {
-  this.el = el
-  this.mode = mode
-  this.mimetype = mimetype || 'text/html'
-
-  Stream.call(this)
-}
-
-var cons = DOMStream
-  , proto = cons.prototype = new Stream
-
-proto.constructor = cons
-
-cons.APPEND = 0
-cons.WRITE = 1
-
-proto.writable = true
-
-proto.setMimetype = function(mime) {
-  this.mimetype = mime
-}
-
-proto.write = function(data) {
-  var result = (this.mode === cons.APPEND) ? this.append(data) : this.insert(data)
-  this.emit('data', this.el.childNodes)
-  return result
-}
-
-proto.end = function() {
-
-}
-
-proto.insert = function(data) {
-  this.el.innerHTML = ''
-  return this.append(data)
-}
-
-proto.append = function(data) {
-  var result = this[this.resolveMimetypeHandler()](data)
-
-  for(var i = 0, len = result.length; i < len; ++i) {
-    this.el.appendChild(result[i])
-  }
-
-  return true
-}
-
-proto.resolveMimetypeHandler = function() {
-  var type = this.mimetype.replace(/(\/\w)/, function(x) {
-    return x.slice(1).toUpperCase()
-  })
-  type = type.charAt(0).toUpperCase() + type.slice(1)
-
-  return 'construct'+type
-}
-
-proto.constructTextHtml = function(data) {
-  var isTableFragment = /(tr|td|th)/.test(data) && !/table/.test(data)
-    , div
-
-  if(isTableFragment) {
-    // wuh-oh.
-    div = document.createElement('table')
-  }
-
-  div = div || document.createElement('div')
-  div.innerHTML = data 
-
-  return [].slice.call(div.childNodes)
-}
-
-proto.constructTextPlain = function(data) {
-  var textNode = document.createTextNode(data)
-
-  return [textNode]
-}
-
-},{"stream":16}],96:[function(require,module,exports){
+},{"./readable":95,"./writable":96}],95:[function(require,module,exports){
 module.exports = DOMStream
 
 var Stream = require('stream').Stream
@@ -58551,6 +58469,88 @@ function valueFromElement(el) {
       return 'data', el.checked
   }
   return el.value
+}
+
+},{"stream":16}],96:[function(require,module,exports){
+module.exports = DOMStream
+
+var Stream = require('stream').Stream
+
+function DOMStream(el, mode, mimetype) {
+  this.el = el
+  this.mode = mode
+  this.mimetype = mimetype || 'text/html'
+
+  Stream.call(this)
+}
+
+var cons = DOMStream
+  , proto = cons.prototype = new Stream
+
+proto.constructor = cons
+
+cons.APPEND = 0
+cons.WRITE = 1
+
+proto.writable = true
+
+proto.setMimetype = function(mime) {
+  this.mimetype = mime
+}
+
+proto.write = function(data) {
+  var result = (this.mode === cons.APPEND) ? this.append(data) : this.insert(data)
+  this.emit('data', this.el.childNodes)
+  return result
+}
+
+proto.end = function() {
+
+}
+
+proto.insert = function(data) {
+  this.el.innerHTML = ''
+  return this.append(data)
+}
+
+proto.append = function(data) {
+  var result = this[this.resolveMimetypeHandler()](data)
+
+  for(var i = 0, len = result.length; i < len; ++i) {
+    this.el.appendChild(result[i])
+  }
+
+  return true
+}
+
+proto.resolveMimetypeHandler = function() {
+  var type = this.mimetype.replace(/(\/\w)/, function(x) {
+    return x.slice(1).toUpperCase()
+  })
+  type = type.charAt(0).toUpperCase() + type.slice(1)
+
+  return 'construct'+type
+}
+
+proto.constructTextHtml = function(data) {
+  var isTableFragment = /(tr|td|th)/.test(data) && !/table/.test(data)
+    , div
+
+  if(isTableFragment) {
+    // wuh-oh.
+    div = document.createElement('table')
+  }
+
+  div = div || document.createElement('div')
+  div.innerHTML = data 
+
+  return [].slice.call(div.childNodes)
+}
+
+proto.constructTextPlain = function(data) {
+  var textNode = document.createTextNode(data)
+
+  return [textNode]
 }
 
 },{"stream":16}],93:[function(require,module,exports){
