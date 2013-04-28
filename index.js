@@ -3,8 +3,16 @@ var websocket = require('websocket-stream')
 var duplexEmitter = require('duplex-emitter')
 var skin = require('minecraft-skin')
 var _ = require('underscore')
-var api = 'p2plobby.jit.su'
-var lerpPercent = 0.1
+var highlight = require('voxel-highlight')
+var createGame = require('voxel-hello-world')
+var voxelMesh = require('voxel-mesh')
+var voxel = require('voxel')
+var createVirus = require('voxel-virus')
+var toWater = require('voxel-virus/example/water')
+var request = require('browser-request')
+var gameMessages = document.querySelector('#game-messages')
+
+var lerpPercent = 0.2
 var updateRate = 50
 var updateBufferSize = 5
 
@@ -12,28 +20,19 @@ boot()
 
 function boot() {
   
-  if( !Detector().webgl ) {
-    return alert('you are not webgl capable!')
-  }
+  if( !Detector().webgl ) { return alert('you are not webgl capable!')  }
 
   var id = ~~(Math.random() * 10000) + '' + ~~(Math.random() * 10000)
-  var peer = new Peer(id, {host: api, port: 9000})
+  var peer = new Peer(id, {host: 'peerjs-maxogden.jit.su', port: 80})
+  // var peer = new Peer(id, {host: 'pizzacats.local', port: 9000})
+  var socket = websocket('ws://p2plobby.jit.su')
+  // var socket = websocket('ws://pizzacats.local:8080')
   window.peer = peer
-  
-  var socket = websocket('ws://' + api + ':8080')
   var emitter = duplexEmitter(socket)
 
   var b = [[-64, -32], [64, 32]]
   var height = 5
   var dimensions = [b[0][1] - b[0][0], b[1][1] - b[1][0]]
-
-  var highlight = require('voxel-highlight')
-  var createGame = require('voxel-hello-world')
-  var voxelMesh = require('voxel-mesh')
-  var voxel = require('voxel')
-  var createVirus = require('voxel-virus')
-  var toWater = require('voxel-virus/example/water')
-  var request = require('browser-request')
   
   createGame({
     texturePath: './textures/',
@@ -53,16 +52,24 @@ function boot() {
 
   function setup(game, avatar) {
     window.game = game
-
+    
     peer.on('connection', function(conn) {
       var messages = document.querySelector('.messages')
       messages.innerHTML += 'connected! prepare to play<br>'
       setTimeout(hideWelcome, 2000)
       emitter.emit('connected')
-      startWater()
+      game.paused = false
+      setTimeout(startWater, 30000)
+      avatar.position.copy({x: 60, y: 5, z: -5})
+      avatar.rotation.y = 1.6100000000000003
       transmitStateStream(game, conn)
       conn.on('data', updateOpponent)
+      conn.on('error', resetGame)
+      conn.on('close', resetGame)
     })
+    
+    peer.on('error', resetGame)
+    peer.on('close', resetGame)
 
     var editBuffer = []
     function updateBuffer(op) {
@@ -80,9 +87,8 @@ function boot() {
       }
     }
     
-
     addLights(game)
-
+    
     var blueVirus = createVirus({
       game: game,
       material: 3,
@@ -114,6 +120,16 @@ function boot() {
     function startWater() {
       blueVirus.infect([start1[0], start1[1] - 1, start1[2]])
       greenVirus.infect([start2[0], start2[1] - 1, start2[2]])
+      var doneTime = Date.now() + 300000
+      setTimeout(finishGame, 300000)
+      var countdown = setInterval(function() {
+        if (doneTime < Date.now()) return clearInterval(countdown)
+        gameMessages.innerHTML = (doneTime - Date.now()) / 1000 + " seconds remaining"
+      }, 1000)
+    }
+    
+    function finishGame() {
+      alert('game is over! todo: count blocks')
     }
 
     game.controls.target().avatar.cameraInside.position.y = 25
@@ -162,11 +178,15 @@ function boot() {
         conn.on('open', function() {
           messages.innerHTML += 'connected! prepare to play<br>'
           setTimeout(hideWelcome, 2000)
-          startWater()
+          setTimeout(startWater, 30000)
+          avatar.position.copy({x: -60, y: 5, z: -5})
+          avatar.rotation.y = -1.6360000000000001
           emitter.emit('connected')
           transmitStateStream(game, conn)
           conn.on('data', updateOpponent)
         })
+        conn.on('error', resetGame)
+        conn.on('close', resetGame)
       })
     })
   }
@@ -182,10 +202,14 @@ function checkAround(position) {
     var nextTo = [position[0] + p[0], position[1] + p[1], position[2] + p[2]]
     var val = game.getBlock(nextTo)
     if (val === 3) {
-      game.blueVirus.infect(nextTo)
+      setTimeout(function() {
+        game.blueVirus.infect(nextTo)
+      }, 1000)
     }
     if (val === 5) {
-      game.greenVirus.infect(nextTo)
+      setTimeout(function() {
+        game.greenVirus.infect(nextTo)
+      }, 1000)
     }
   })
 }
@@ -251,6 +275,7 @@ function sendState(game, conn) {
 }
 
 function hideWelcome() {
+  gameMessages.innerHTML = "Water turns on in 30 seconds!"
   document.querySelector('#welcome').style.display = 'none'
 }
 
@@ -277,4 +302,8 @@ function addMarker(game, position) {
 
 function scale( x, fromLow, fromHigh, toLow, toHigh ) {
   return ( x - fromLow ) * ( toHigh - toLow ) / ( fromHigh - fromLow ) + toLow
+}
+
+function resetGame() {
+  alert('other player left, refresh page to find a new opponent')
 }
