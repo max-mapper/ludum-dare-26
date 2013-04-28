@@ -3,9 +3,10 @@ var websocket = require('websocket-stream')
 var duplexEmitter = require('duplex-emitter')
 var skin = require('minecraft-skin')
 var _ = require('underscore')
-var api = 'localhost'
+var api = 'pizzacats.local'
 var lerpPercent = 0.1
 var updateRate = 50
+var updateBufferSize = 5
 
 boot()
 
@@ -16,7 +17,7 @@ function boot() {
   }
 
   var id = ~~(Math.random() * 10000) + '' + ~~(Math.random() * 10000)
-  var peer = new Peer(id, {host: 'localhost', port: 9000})
+  var peer = new Peer(id, {host: api, port: 9000})
   window.peer = peer
   
   var socket = websocket('ws://' + api + ':8080')
@@ -58,9 +59,27 @@ function boot() {
       messages.innerHTML += 'connected! prepare to play<br>'
       setTimeout(hideWelcome, 2000)
       emitter.emit('connected')
+      startWater()
       transmitStateStream(game, conn)
       conn.on('data', updateOpponent)
     })
+
+    var editBuffer = []
+    function updateBuffer(op) {
+      editBuffer.unshift(op)
+      if (editBuffer.length >= updateBufferSize) editBuffer = editBuffer.slice(0, 5)
+      if (window.conn) {
+        var msg = [
+          'e'
+        ]
+        editBuffer.map(function(edit) {
+          msg.push(edit.join(':'))
+        })
+        msg = msg.join('|')
+        conn.send(msg)
+      }
+    }
+    
 
     addLights(game)
 
@@ -77,6 +96,9 @@ function boot() {
       material: 5,
     })
     var toVirus = toWater(greenVirus, 5)
+
+    game.blueVirus = blueVirus
+    game.greenVirus = greenVirus
 
     game.on('tick', greenVirus.tick.bind(greenVirus))
 
@@ -106,40 +128,26 @@ function boot() {
     hl.on('remove', function (voxelPos) { blockPosErase = null })
     hl.on('highlight-adjacent', function (voxelPos) { blockPosPlace = voxelPos })
     hl.on('remove-adjacent', function (voxelPos) { blockPosPlace = null })
-
+    
     game.on('fire', function (target, state) {
       var select = game.controls.state.select
       var position = blockPosPlace
       if (position) {
         game.createBlock(position, 'red')
         checkAround(position)
+        updateBuffer([position[0], position[1], position[2], 2])
       } else {
         position = blockPosErase
         var val = game.getBlock(position)
-        if (position && val !== 4) {
+        if (position && val !== 4 && val !== 1) {
           game.setBlock(position, 0)
           checkAround(position)
+          updateBuffer([position[0], position[1], position[2], 0])
         }
       }
     })
 
-    function checkAround(position) {
-      var around = [
-        [0, 1, 0], [0, -1, 0],
-        [1, 0, 0], [-1, 0, 0],
-        [0, 0, 1], [0, 0, -1],
-      ]
-      around.forEach(function(p) {
-        var nextTo = [position[0] + p[0], position[1] + p[1], position[2] + p[2]]
-        var val = game.getBlock(nextTo)
-        if (val === 3) {
-          blueVirus.infect(nextTo)
-        }
-        if (val === 5) {
-          greenVirus.infect(nextTo)
-        }
-      })
-    }
+
     
     document.querySelector('.instructions').innerHTML = document.querySelector('#loaded').innerHTML
     document.querySelector('.look').addEventListener('click', function(e) {
@@ -156,6 +164,7 @@ function boot() {
         conn.on('open', function() {
           messages.innerHTML += 'connected! prepare to play<br>'
           setTimeout(hideWelcome, 2000)
+          startWater()
           emitter.emit('connected')
           transmitStateStream(game, conn)
           conn.on('data', updateOpponent)
@@ -163,6 +172,24 @@ function boot() {
       })
     })
   }
+}
+
+function checkAround(position) {
+  var around = [
+    [0, 1, 0], [0, -1, 0],
+    [1, 0, 0], [-1, 0, 0],
+    [0, 0, 1], [0, 0, -1],
+  ]
+  around.forEach(function(p) {
+    var nextTo = [position[0] + p[0], position[1] + p[1], position[2] + p[2]]
+    var val = game.getBlock(nextTo)
+    if (val === 3) {
+      game.blueVirus.infect(nextTo)
+    }
+    if (val === 5) {
+      game.greenVirus.infect(nextTo)
+    }
+  })
 }
 
 function updateOpponent(message) {
@@ -175,9 +202,17 @@ function updateOpponent(message) {
       rotation: {x: +parts[4], y: +parts[5]}
     }
     opponent.mesh.position.copy(opponent.mesh.position.lerp(update.position, lerpPercent))
-    // playerMesh.position.y += 17
     opponent.mesh.children[0].rotation.y = update.rotation.y + (Math.PI / 2)
     opponent.head.rotation.z = scale(update.rotation.x, -1.5, 1.5, -0.75, 0.75)
+  } else if (message[0] === 'e') {
+    message.split('|').map(function(edit) {
+      if (edit === 'e') return
+      edit = edit.split(':')
+      var val = +edit[3]
+      var setpos = [+edit[0], +edit[1], +edit[2]]
+      game.setBlock(setpos, val)
+      if (val === 0 || val === 2) checkAround(setpos)
+    })
   } else {
     console.log('unknown type', message)
   }
@@ -194,6 +229,7 @@ function createOpponent(game) {
 }
 
 function transmitStateStream(game, conn) {
+  window.conn = conn
   game.controls.on('data', _.throttle(function(state) {
     var interacting = false
     Object.keys(state).map(function(control) {
@@ -210,7 +246,7 @@ function sendState(game, conn) {
     player.position.x.toFixed(4),
     player.position.y.toFixed(4),
     player.position.z.toFixed(4),
-    player.yaw.rotation.x.toFixed(4),
+    player.pitch.rotation.x.toFixed(4),
     player.yaw.rotation.y.toFixed(4)
   ].join('|')
   conn.send(state)
