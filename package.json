@@ -1,21 +1,20 @@
 {
   "name": "p2plobby",
-  "version": "0.0.0",
+  "version": "0.0.0-3",
   "description": "ERROR: No README.md file found!",
   "main": "index.js",
   "scripts": {
-    "start": "beefy index.js:bundle.js"
+    "start": "node server.js",
+    "test": "beefy index.js:bundle.js"
   },
   "repository": "",
   "author": "",
   "license": "BSD",
   "dependencies": {
-    "peer": "~0.1.6",
-    "voxel-hello-world": "~0.5.0",
-    "peerjs": "~0.2.0",
-    "voxel-engine": "~0.17.1",
-    "voxel-highlight": "0.0.9",
-    "voxel-creature": "~0.1.0"
+    "peer": "0.1.6",
+    "ws": "0.4.25",
+    "websocket-stream": "0.0.5",
+    "duplex-emitter": "0.1.9"
   },
   "subdomain": "p2plobby",
   "engines": {
