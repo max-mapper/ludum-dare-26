@@ -1,7 +1,3 @@
-// peerjs
-var PeerServer = require('peer').PeerServer
-var server = new PeerServer({ port: 9000 })
-
 // game lobby
 var WebSocketServer = require('ws').Server
 var websocket = require('websocket-stream')
