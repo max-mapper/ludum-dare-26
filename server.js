@@ -28,6 +28,9 @@ wss.on('connection', function(ws) {
       looking[id] = emitter
     } else {
       emitter.emit('peer', others[0])
+      setTimeout(function() {
+        delete looking[id]
+      }, 5000)
       delete looking[others[0]]
     }
   })

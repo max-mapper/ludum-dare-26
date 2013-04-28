@@ -9,7 +9,6 @@ var voxelMesh = require('voxel-mesh')
 var voxel = require('voxel')
 var createVirus = require('voxel-virus')
 var toWater = require('voxel-virus/example/water')
-var request = require('browser-request')
 var gameMessages = document.querySelector('#game-messages')
 
 var lerpPercent = 0.2
@@ -166,6 +165,8 @@ function boot() {
         messages.innerHTML += 'opponent found. trying to connect...<br>'
         var conn = peer.connect(peerID)
         conn.on('open', function() {
+          emitter.removeAllListeners('peer')
+          emitter.removeAllListeners('nobody')
           messages.innerHTML += 'connected! prepare to play<br>'
           setTimeout(hideWelcome, 2000)
           setTimeout(startWater, buildPhaseTime)
