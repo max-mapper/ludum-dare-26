@@ -15,6 +15,10 @@ var gameMessages = document.querySelector('#game-messages')
 var lerpPercent = 0.2
 var updateRate = 50
 var updateBufferSize = 5
+var buildPhaseTime = 180000
+var b = [[-50, -32], [50, 32]]
+var height = 5
+var dimensions = [b[0][1] - b[0][0], b[1][1] - b[1][0]]
 
 boot()
 
@@ -30,10 +34,6 @@ function boot() {
   window.peer = peer
   var emitter = duplexEmitter(socket)
 
-  var b = [[-64, -32], [64, 32]]
-  var height = 5
-  var dimensions = [b[0][1] - b[0][0], b[1][1] - b[1][0]]
-  
   createGame({
     texturePath: './textures/',
     materials: ['blue', 'red', 'water', 'yellow', 'green'],
@@ -59,8 +59,8 @@ function boot() {
       setTimeout(hideWelcome, 2000)
       emitter.emit('connected')
       game.paused = false
-      setTimeout(startWater, 30000)
-      avatar.position.copy({x: 60, y: 5, z: -5})
+      setTimeout(startWater, buildPhaseTime)
+      avatar.position.copy({x: 45, y: 5, z: -5})
       avatar.rotation.y = 1.6100000000000003
       transmitStateStream(game, conn)
       conn.on('data', updateOpponent)
@@ -108,8 +108,8 @@ function boot() {
 
     game.on('tick', greenVirus.tick.bind(greenVirus))
 
-    var start1 = [-50, 10, 0]
-    var start2 = [50, 10, 0]
+    var start1 = [-40, 30, 0]
+    var start2 = [40, 30, 0]
 
     game.setBlock(start1, 'yellow')
     game.setBlock(start2, 'yellow')
@@ -120,18 +120,8 @@ function boot() {
     function startWater() {
       blueVirus.infect([start1[0], start1[1] - 1, start1[2]])
       greenVirus.infect([start2[0], start2[1] - 1, start2[2]])
-      var doneTime = Date.now() + 300000
-      setTimeout(finishGame, 300000)
-      var countdown = setInterval(function() {
-        if (doneTime < Date.now()) return clearInterval(countdown)
-        gameMessages.innerHTML = (doneTime - Date.now()) / 1000 + " seconds remaining"
-      }, 1000)
     }
     
-    function finishGame() {
-      alert('game is over! todo: count blocks')
-    }
-
     game.controls.target().avatar.cameraInside.position.y = 25
     game.controls.target().avatar.cameraInside.position.z = 3
 
@@ -178,8 +168,8 @@ function boot() {
         conn.on('open', function() {
           messages.innerHTML += 'connected! prepare to play<br>'
           setTimeout(hideWelcome, 2000)
-          setTimeout(startWater, 30000)
-          avatar.position.copy({x: -60, y: 5, z: -5})
+          setTimeout(startWater, buildPhaseTime)
+          avatar.position.copy({x: -45, y: 5, z: -5})
           avatar.rotation.y = -1.6360000000000001
           emitter.emit('connected')
           transmitStateStream(game, conn)
@@ -275,7 +265,11 @@ function sendState(game, conn) {
 }
 
 function hideWelcome() {
-  gameMessages.innerHTML = "Water turns on in 30 seconds!"
+  var doneTime = Date.now() + buildPhaseTime
+  var countdown = setInterval(function() {
+    if (doneTime < Date.now()) return clearInterval(countdown)
+    gameMessages.innerHTML = ~~((doneTime - Date.now()) / 1000) + " seconds remaining until water starts flowing from the yellow blocks!"
+  }, 1000)
   document.querySelector('#welcome').style.display = 'none'
 }
 

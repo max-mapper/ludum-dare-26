@@ -78,7 +78,7 @@ module.exports = function(water, material) {
 
   water.material = material;
   water.rate = 300;
-  water.decay = 30;
+  water.decay = 100;
   water.how = function(block, level) {
     var self = this;
     if (self.decay > 0) level++;
@@ -107,15 +107,15 @@ module.exports = function(water, material) {
       } else {
 
       }
-      if (upType === self.material && up2Type === 0) {
-        around.push(b)
-      }
+      // if (upType === self.material && up2Type === 0) {
+      //   around.push(b)
+      // }
     });
 
-    var b = self.game.getBlock([block[0], block[1] + (-1 * size), block[2]]);
-    if (b === 0) {
-      around.push(b);
-    }
+    // var b = self.game.getBlock([block[0], block[1] + (-1 * size), block[2]]);
+    // if (b === 0) {
+    //   around.push(b);
+    // }
 
     around.forEach(function(b) {
       if (!util.isArray(b)) return;
@@ -144,6 +144,10 @@ var gameMessages = document.querySelector('#game-messages')
 var lerpPercent = 0.2
 var updateRate = 50
 var updateBufferSize = 5
+var buildPhaseTime = 180000
+var b = [[-50, -32], [50, 32]]
+var height = 5
+var dimensions = [b[0][1] - b[0][0], b[1][1] - b[1][0]]
 
 boot()
 
@@ -159,10 +163,6 @@ function boot() {
   window.peer = peer
   var emitter = duplexEmitter(socket)
 
-  var b = [[-64, -32], [64, 32]]
-  var height = 5
-  var dimensions = [b[0][1] - b[0][0], b[1][1] - b[1][0]]
-  
   createGame({
     texturePath: './textures/',
     materials: ['blue', 'red', 'water', 'yellow', 'green'],
@@ -188,8 +188,8 @@ function boot() {
       setTimeout(hideWelcome, 2000)
       emitter.emit('connected')
       game.paused = false
-      setTimeout(startWater, 30000)
-      avatar.position.copy({x: 60, y: 5, z: -5})
+      setTimeout(startWater, buildPhaseTime)
+      avatar.position.copy({x: 45, y: 5, z: -5})
       avatar.rotation.y = 1.6100000000000003
       transmitStateStream(game, conn)
       conn.on('data', updateOpponent)
@@ -237,8 +237,8 @@ function boot() {
 
     game.on('tick', greenVirus.tick.bind(greenVirus))
 
-    var start1 = [-50, 10, 0]
-    var start2 = [50, 10, 0]
+    var start1 = [-40, 30, 0]
+    var start2 = [40, 30, 0]
 
     game.setBlock(start1, 'yellow')
     game.setBlock(start2, 'yellow')
@@ -249,18 +249,8 @@ function boot() {
     function startWater() {
       blueVirus.infect([start1[0], start1[1] - 1, start1[2]])
       greenVirus.infect([start2[0], start2[1] - 1, start2[2]])
-      var doneTime = Date.now() + 300000
-      setTimeout(finishGame, 300000)
-      var countdown = setInterval(function() {
-        if (doneTime < Date.now()) return clearInterval(countdown)
-        gameMessages.innerHTML = (doneTime - Date.now()) / 1000 + " seconds remaining"
-      }, 1000)
     }
     
-    function finishGame() {
-      alert('game is over! todo: count blocks')
-    }
-
     game.controls.target().avatar.cameraInside.position.y = 25
     game.controls.target().avatar.cameraInside.position.z = 3
 
@@ -307,8 +297,8 @@ function boot() {
         conn.on('open', function() {
           messages.innerHTML += 'connected! prepare to play<br>'
           setTimeout(hideWelcome, 2000)
-          setTimeout(startWater, 30000)
-          avatar.position.copy({x: -60, y: 5, z: -5})
+          setTimeout(startWater, buildPhaseTime)
+          avatar.position.copy({x: -45, y: 5, z: -5})
           avatar.rotation.y = -1.6360000000000001
           emitter.emit('connected')
           transmitStateStream(game, conn)
@@ -404,7 +394,11 @@ function sendState(game, conn) {
 }
 
 function hideWelcome() {
-  gameMessages.innerHTML = "Water turns on in 30 seconds!"
+  var doneTime = Date.now() + buildPhaseTime
+  var countdown = setInterval(function() {
+    if (doneTime < Date.now()) return clearInterval(countdown)
+    gameMessages.innerHTML = ~~((doneTime - Date.now()) / 1000) + " seconds remaining until water starts flowing from the yellow blocks!"
+  }, 1000)
   document.querySelector('#welcome').style.display = 'none'
 }
 
@@ -436,7 +430,7 @@ function scale( x, fromLow, fromHigh, toLow, toHigh ) {
 function resetGame() {
   alert('other player left, refresh page to find a new opponent')
 }
-},{"./detector":1,"voxel-virus/example/water":2,"duplex-emitter":5,"underscore":6,"voxel-mesh":7,"voxel":8,"browser-request":9,"websocket-stream":10,"minecraft-skin":11,"voxel-highlight":12,"voxel-hello-world":13,"voxel-virus":14}],3:[function(require,module,exports){
+},{"./detector":1,"voxel-virus/example/water":2,"duplex-emitter":5,"underscore":6,"voxel-mesh":7,"voxel":8,"browser-request":9,"minecraft-skin":10,"websocket-stream":11,"voxel-highlight":12,"voxel-hello-world":13,"voxel-virus":14}],3:[function(require,module,exports){
 var events = require('events');
 
 exports.isArray = isArray;
@@ -2019,60 +2013,6 @@ exports.format = function(f) {
 
 })()
 },{}],10:[function(require,module,exports){
-var stream = require('stream')
-var util = require('util')
-
-function WebsocketStream(server, protocol) {
-  var self = this
-  stream.Stream.call(this)
-  this.readable = true
-  this.writable = true
-  if (typeof server === "object") {
-    this.ws = server
-    this.ws.on('message', this.onMessage.bind(this))
-    this.ws.on('error', this.onError.bind(this))
-    this.ws.on('close', this.onClose.bind(this))
-    this.ws.on('open', function() {
-      self.emit('open')
-    })
-  } else {
-    this.ws = new WebSocket(server, protocol)
-    this.ws.onmessage = this.onMessage.bind(this)
-    this.ws.onerror = this.onError.bind(this)
-    this.ws.onclose = this.onClose.bind(this)
-  }
-}
-
-util.inherits(WebsocketStream, stream.Stream)
-
-module.exports = function(server, protocol) {
-  return new WebsocketStream(server, protocol)
-}
-
-module.exports.WebsocketStream = WebsocketStream
-
-WebsocketStream.prototype.onMessage = function(e, flags) {
-  if (e.data) return this.emit('data', e.data, flags)
-  this.emit('data', e, flags)
-}
-
-WebsocketStream.prototype.onError = function(err) {
-  this.emit('error', err)
-}
-
-WebsocketStream.prototype.onClose = function(err) {
-  this.emit('end')
-}
-
-WebsocketStream.prototype.write = function(data) {
-  return this.ws.send(data)
-}
-
-WebsocketStream.prototype.end = function() {
-  this.ws.close()
-}
-
-},{"stream":16,"util":3}],11:[function(require,module,exports){
 var THREE
 
 module.exports = function(three, image, sizeRatio) {
@@ -2444,7 +2384,61 @@ Skin.prototype.createPlayerObject = function(scene) {
   playerGroup.scale = this.scale
   return playerGroup
 }
-},{}],17:[function(require,module,exports){
+},{}],11:[function(require,module,exports){
+var stream = require('stream')
+var util = require('util')
+
+function WebsocketStream(server, protocol) {
+  var self = this
+  stream.Stream.call(this)
+  this.readable = true
+  this.writable = true
+  if (typeof server === "object") {
+    this.ws = server
+    this.ws.on('message', this.onMessage.bind(this))
+    this.ws.on('error', this.onError.bind(this))
+    this.ws.on('close', this.onClose.bind(this))
+    this.ws.on('open', function() {
+      self.emit('open')
+    })
+  } else {
+    this.ws = new WebSocket(server, protocol)
+    this.ws.onmessage = this.onMessage.bind(this)
+    this.ws.onerror = this.onError.bind(this)
+    this.ws.onclose = this.onClose.bind(this)
+  }
+}
+
+util.inherits(WebsocketStream, stream.Stream)
+
+module.exports = function(server, protocol) {
+  return new WebsocketStream(server, protocol)
+}
+
+module.exports.WebsocketStream = WebsocketStream
+
+WebsocketStream.prototype.onMessage = function(e, flags) {
+  if (e.data) return this.emit('data', e.data, flags)
+  this.emit('data', e, flags)
+}
+
+WebsocketStream.prototype.onError = function(err) {
+  this.emit('error', err)
+}
+
+WebsocketStream.prototype.onClose = function(err) {
+  this.emit('end')
+}
+
+WebsocketStream.prototype.write = function(data) {
+  return this.ws.send(data)
+}
+
+WebsocketStream.prototype.end = function() {
+  this.ws.close()
+}
+
+},{"stream":16,"util":3}],17:[function(require,module,exports){
 // shim for using process in browser
 
 var process = module.exports = {};
@@ -2975,59 +2969,7 @@ module.exports.generateExamples = function() {
 }
 
 
-},{"./meshers/culled":20,"./chunker":21,"./meshers/greedy":22,"./meshers/monotone":23,"./meshers/stupid":24}],20:[function(require,module,exports){
-//Naive meshing (with face culling)
-function CulledMesh(volume, dims) {
-  //Precalculate direction vectors for convenience
-  var dir = new Array(3);
-  for(var i=0; i<3; ++i) {
-    dir[i] = [[0,0,0], [0,0,0]];
-    dir[i][0][(i+1)%3] = 1;
-    dir[i][1][(i+2)%3] = 1;
-  }
-  //March over the volume
-  var vertices = []
-    , faces = []
-    , x = [0,0,0]
-    , B = [[false,true]    //Incrementally update bounds (this is a bit ugly)
-          ,[false,true]
-          ,[false,true]]
-    , n = -dims[0]*dims[1];
-  for(           B[2]=[false,true],x[2]=-1; x[2]<dims[2]; B[2]=[true,(++x[2]<dims[2]-1)])
-  for(n-=dims[0],B[1]=[false,true],x[1]=-1; x[1]<dims[1]; B[1]=[true,(++x[1]<dims[1]-1)])
-  for(n-=1,      B[0]=[false,true],x[0]=-1; x[0]<dims[0]; B[0]=[true,(++x[0]<dims[0]-1)], ++n) {
-    //Read current voxel and 3 neighboring voxels using bounds check results
-    var p =   (B[0][0] && B[1][0] && B[2][0]) ? volume[n]                 : 0
-      , b = [ (B[0][1] && B[1][0] && B[2][0]) ? volume[n+1]               : 0
-            , (B[0][0] && B[1][1] && B[2][0]) ? volume[n+dims[0]]         : 0
-            , (B[0][0] && B[1][0] && B[2][1]) ? volume[n+dims[0]*dims[1]] : 0
-          ];
-    //Generate faces
-    for(var d=0; d<3; ++d)
-    if((!!p) !== (!!b[d])) {
-      var s = !p ? 1 : 0;
-      var t = [x[0],x[1],x[2]]
-        , u = dir[d][s]
-        , v = dir[d][s^1];
-      ++t[d];
-      
-      var vertex_count = vertices.length;
-      vertices.push([t[0],           t[1],           t[2]          ]);
-      vertices.push([t[0]+u[0],      t[1]+u[1],      t[2]+u[2]     ]);
-      vertices.push([t[0]+u[0]+v[0], t[1]+u[1]+v[1], t[2]+u[2]+v[2]]);
-      vertices.push([t[0]     +v[0], t[1]     +v[1], t[2]     +v[2]]);
-      faces.push([vertex_count, vertex_count+1, vertex_count+2, vertex_count+3, s ? b[d] : p]);
-    }
-  }
-  return { vertices:vertices, faces:faces };
-}
-
-
-if(exports) {
-  exports.mesher = CulledMesh;
-}
-
-},{}],22:[function(require,module,exports){
+},{"./chunker":20,"./meshers/greedy":21,"./meshers/monotone":22,"./meshers/stupid":23,"./meshers/culled":24}],21:[function(require,module,exports){
 var GreedyMesh = (function() {
 //Cache buffer internally
 var mask = new Int32Array(4096);
@@ -3144,7 +3086,7 @@ if(exports) {
   exports.mesher = GreedyMesh;
 }
 
-},{}],23:[function(require,module,exports){
+},{}],22:[function(require,module,exports){
 "use strict";
 
 var MonotoneMesh = (function(){
@@ -3397,7 +3339,7 @@ if(exports) {
   exports.mesher = MonotoneMesh;
 }
 
-},{}],24:[function(require,module,exports){
+},{}],23:[function(require,module,exports){
 //The stupidest possible way to generate a Minecraft mesh (I think)
 function StupidMesh(volume, dims) {
   var vertices = [], faces = [], x = [0,0,0], n = 0;
@@ -3431,6 +3373,58 @@ function StupidMesh(volume, dims) {
 
 if(exports) {
   exports.mesher = StupidMesh;
+}
+
+},{}],24:[function(require,module,exports){
+//Naive meshing (with face culling)
+function CulledMesh(volume, dims) {
+  //Precalculate direction vectors for convenience
+  var dir = new Array(3);
+  for(var i=0; i<3; ++i) {
+    dir[i] = [[0,0,0], [0,0,0]];
+    dir[i][0][(i+1)%3] = 1;
+    dir[i][1][(i+2)%3] = 1;
+  }
+  //March over the volume
+  var vertices = []
+    , faces = []
+    , x = [0,0,0]
+    , B = [[false,true]    //Incrementally update bounds (this is a bit ugly)
+          ,[false,true]
+          ,[false,true]]
+    , n = -dims[0]*dims[1];
+  for(           B[2]=[false,true],x[2]=-1; x[2]<dims[2]; B[2]=[true,(++x[2]<dims[2]-1)])
+  for(n-=dims[0],B[1]=[false,true],x[1]=-1; x[1]<dims[1]; B[1]=[true,(++x[1]<dims[1]-1)])
+  for(n-=1,      B[0]=[false,true],x[0]=-1; x[0]<dims[0]; B[0]=[true,(++x[0]<dims[0]-1)], ++n) {
+    //Read current voxel and 3 neighboring voxels using bounds check results
+    var p =   (B[0][0] && B[1][0] && B[2][0]) ? volume[n]                 : 0
+      , b = [ (B[0][1] && B[1][0] && B[2][0]) ? volume[n+1]               : 0
+            , (B[0][0] && B[1][1] && B[2][0]) ? volume[n+dims[0]]         : 0
+            , (B[0][0] && B[1][0] && B[2][1]) ? volume[n+dims[0]*dims[1]] : 0
+          ];
+    //Generate faces
+    for(var d=0; d<3; ++d)
+    if((!!p) !== (!!b[d])) {
+      var s = !p ? 1 : 0;
+      var t = [x[0],x[1],x[2]]
+        , u = dir[d][s]
+        , v = dir[d][s^1];
+      ++t[d];
+      
+      var vertex_count = vertices.length;
+      vertices.push([t[0],           t[1],           t[2]          ]);
+      vertices.push([t[0]+u[0],      t[1]+u[1],      t[2]+u[2]     ]);
+      vertices.push([t[0]+u[0]+v[0], t[1]+u[1]+v[1], t[2]+u[2]+v[2]]);
+      vertices.push([t[0]     +v[0], t[1]     +v[1], t[2]     +v[2]]);
+      faces.push([vertex_count, vertex_count+1, vertex_count+2, vertex_count+3, s ? b[d] : p]);
+    }
+  }
+  return { vertices:vertices, faces:faces };
+}
+
+
+if(exports) {
+  exports.mesher = CulledMesh;
 }
 
 },{}],12:[function(require,module,exports){
@@ -3600,7 +3594,7 @@ Highlighter.prototype.highlight = function () {
   if (!this.animate) this.mesh.position.set(this.targetPosition[0], this.targetPosition[1], this.targetPosition[2])
 }
 
-},{"events":15,"inherits":25,"underscore":26}],9:[function(require,module,exports){
+},{"events":15,"underscore":25,"inherits":26}],9:[function(require,module,exports){
 (function(){// Browser Request
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -3992,37 +3986,6 @@ function b64_enc (data) {
 
 })()
 },{"./xmlhttprequest":27}],25:[function(require,module,exports){
-module.exports = inherits
-
-function inherits (c, p, proto) {
-  proto = proto || {}
-  var e = {}
-  ;[c.prototype, proto].forEach(function (s) {
-    Object.getOwnPropertyNames(s).forEach(function (k) {
-      e[k] = Object.getOwnPropertyDescriptor(s, k)
-    })
-  })
-  c.prototype = Object.create(p.prototype, e)
-  c.super = p
-}
-
-//function Child () {
-//  Child.super.call(this)
-//  console.error([this
-//                ,this.constructor
-//                ,this.constructor === Child
-//                ,this.constructor.super === Parent
-//                ,Object.getPrototypeOf(this) === Child.prototype
-//                ,Object.getPrototypeOf(Object.getPrototypeOf(this))
-//                 === Parent.prototype
-//                ,this instanceof Child
-//                ,this instanceof Parent])
-//}
-//function Parent () {}
-//inherits(Child, Parent)
-//new Child
-
-},{}],26:[function(require,module,exports){
 (function(){//     Underscore.js 1.4.4
 //     http://underscorejs.org
 //     (c) 2009-2013 Jeremy Ashkenas, DocumentCloud Inc.
@@ -5251,6 +5214,37 @@ function inherits (c, p, proto) {
 }).call(this);
 
 })()
+},{}],26:[function(require,module,exports){
+module.exports = inherits
+
+function inherits (c, p, proto) {
+  proto = proto || {}
+  var e = {}
+  ;[c.prototype, proto].forEach(function (s) {
+    Object.getOwnPropertyNames(s).forEach(function (k) {
+      e[k] = Object.getOwnPropertyDescriptor(s, k)
+    })
+  })
+  c.prototype = Object.create(p.prototype, e)
+  c.super = p
+}
+
+//function Child () {
+//  Child.super.call(this)
+//  console.error([this
+//                ,this.constructor
+//                ,this.constructor === Child
+//                ,this.constructor.super === Parent
+//                ,Object.getPrototypeOf(this) === Child.prototype
+//                ,Object.getPrototypeOf(Object.getPrototypeOf(this))
+//                 === Parent.prototype
+//                ,this instanceof Child
+//                ,this instanceof Parent])
+//}
+//function Parent () {}
+//inherits(Child, Parent)
+//new Child
+
 },{}],28:[function(require,module,exports){
 (function(__dirname){var path = require('path')
 var texturePath = __dirname + '/textures'
@@ -42932,7 +42926,42 @@ if (typeof exports !== 'undefined') {
 }
 
 })(require("__browserify_process"))
-},{"__browserify_process":17}],21:[function(require,module,exports){
+},{"__browserify_process":17}],18:[function(require,module,exports){
+var JSONStream = require('JSONStream');
+var duplexer = require('duplexer');
+
+// Transforms a raw stream into an
+// object duplex stream
+function toObjectDuplex(stream) {
+
+  //// Write Stream (Server -> Client)
+
+  // Create a write stream that accepts objects
+  // and spits out JSON, newline separated
+  var objectWriteStream = JSONStream.stringify();
+
+  // Pipe the stream to the client
+  objectWriteStream.pipe(stream);
+
+
+  //// Read Stream (Client -> Server)
+
+  // Create a read stream that parses JSON
+  // and spits out objects
+  var objectReadStream = JSONStream.parse([true]);
+
+  // Pipe the client raw data into the json parser
+  stream.pipe(objectReadStream);
+
+  /// Smush together the write and read streams into
+  /// one duplex stream
+  var duplexStream = duplexer(objectWriteStream, objectReadStream);
+  
+  return duplexStream;
+}
+
+module.exports = toObjectDuplex;
+},{"JSONStream":37,"duplexer":38}],20:[function(require,module,exports){
 var events = require('events')
 var inherits = require('inherits')
 
@@ -43069,42 +43098,7 @@ Chunker.prototype.voxelVector = function(pos) {
   return [vx, vy, vz]
 };
 
-},{"events":15,"inherits":37}],18:[function(require,module,exports){
-var JSONStream = require('JSONStream');
-var duplexer = require('duplexer');
-
-// Transforms a raw stream into an
-// object duplex stream
-function toObjectDuplex(stream) {
-
-  //// Write Stream (Server -> Client)
-
-  // Create a write stream that accepts objects
-  // and spits out JSON, newline separated
-  var objectWriteStream = JSONStream.stringify();
-
-  // Pipe the stream to the client
-  objectWriteStream.pipe(stream);
-
-
-  //// Read Stream (Client -> Server)
-
-  // Create a read stream that parses JSON
-  // and spits out objects
-  var objectReadStream = JSONStream.parse([true]);
-
-  // Pipe the client raw data into the json parser
-  stream.pipe(objectReadStream);
-
-  /// Smush together the write and read streams into
-  /// one duplex stream
-  var duplexStream = duplexer(objectWriteStream, objectReadStream);
-  
-  return duplexStream;
-}
-
-module.exports = toObjectDuplex;
-},{"duplexer":38,"JSONStream":39}],31:[function(require,module,exports){
+},{"events":15,"inherits":39}],31:[function(require,module,exports){
 var chunker = require('./chunker')
 
 module.exports = function(opts) {
@@ -43200,38 +43194,7 @@ module.exports.generateExamples = function() {
 }
 
 
-},{"./chunker":40,"./meshers/culled":41,"./meshers/greedy":42,"./meshers/monotone":43,"./meshers/stupid":44}],37:[function(require,module,exports){
-module.exports = inherits
-
-function inherits (c, p, proto) {
-  proto = proto || {}
-  var e = {}
-  ;[c.prototype, proto].forEach(function (s) {
-    Object.getOwnPropertyNames(s).forEach(function (k) {
-      e[k] = Object.getOwnPropertyDescriptor(s, k)
-    })
-  })
-  c.prototype = Object.create(p.prototype, e)
-  c.super = p
-}
-
-//function Child () {
-//  Child.super.call(this)
-//  console.error([this
-//                ,this.constructor
-//                ,this.constructor === Child
-//                ,this.constructor.super === Parent
-//                ,Object.getPrototypeOf(this) === Child.prototype
-//                ,Object.getPrototypeOf(Object.getPrototypeOf(this))
-//                 === Parent.prototype
-//                ,this instanceof Child
-//                ,this instanceof Parent])
-//}
-//function Parent () {}
-//inherits(Child, Parent)
-//new Child
-
-},{}],38:[function(require,module,exports){
+},{"./chunker":40,"./meshers/greedy":41,"./meshers/monotone":42,"./meshers/stupid":43,"./meshers/culled":44}],38:[function(require,module,exports){
 var Stream = require("stream")
     , writeMethods = ["write", "end", "destroy"]
     , readMethods = ["resume", "pause"]
@@ -43320,58 +43283,6 @@ function duplex(writer, reader) {
     }
 }
 },{"stream":16}],41:[function(require,module,exports){
-//Naive meshing (with face culling)
-function CulledMesh(volume, dims) {
-  //Precalculate direction vectors for convenience
-  var dir = new Array(3);
-  for(var i=0; i<3; ++i) {
-    dir[i] = [[0,0,0], [0,0,0]];
-    dir[i][0][(i+1)%3] = 1;
-    dir[i][1][(i+2)%3] = 1;
-  }
-  //March over the volume
-  var vertices = []
-    , faces = []
-    , x = [0,0,0]
-    , B = [[false,true]    //Incrementally update bounds (this is a bit ugly)
-          ,[false,true]
-          ,[false,true]]
-    , n = -dims[0]*dims[1];
-  for(           B[2]=[false,true],x[2]=-1; x[2]<dims[2]; B[2]=[true,(++x[2]<dims[2]-1)])
-  for(n-=dims[0],B[1]=[false,true],x[1]=-1; x[1]<dims[1]; B[1]=[true,(++x[1]<dims[1]-1)])
-  for(n-=1,      B[0]=[false,true],x[0]=-1; x[0]<dims[0]; B[0]=[true,(++x[0]<dims[0]-1)], ++n) {
-    //Read current voxel and 3 neighboring voxels using bounds check results
-    var p =   (B[0][0] && B[1][0] && B[2][0]) ? volume[n]                 : 0
-      , b = [ (B[0][1] && B[1][0] && B[2][0]) ? volume[n+1]               : 0
-            , (B[0][0] && B[1][1] && B[2][0]) ? volume[n+dims[0]]         : 0
-            , (B[0][0] && B[1][0] && B[2][1]) ? volume[n+dims[0]*dims[1]] : 0
-          ];
-    //Generate faces
-    for(var d=0; d<3; ++d)
-    if((!!p) !== (!!b[d])) {
-      var s = !p ? 1 : 0;
-      var t = [x[0],x[1],x[2]]
-        , u = dir[d][s]
-        , v = dir[d][s^1];
-      ++t[d];
-      
-      var vertex_count = vertices.length;
-      vertices.push([t[0],           t[1],           t[2]          ]);
-      vertices.push([t[0]+u[0],      t[1]+u[1],      t[2]+u[2]     ]);
-      vertices.push([t[0]+u[0]+v[0], t[1]+u[1]+v[1], t[2]+u[2]+v[2]]);
-      vertices.push([t[0]     +v[0], t[1]     +v[1], t[2]     +v[2]]);
-      faces.push([vertex_count, vertex_count+1, vertex_count+2, vertex_count+3, s ? b[d] : p]);
-    }
-  }
-  return { vertices:vertices, faces:faces };
-}
-
-
-if(exports) {
-  exports.mesher = CulledMesh;
-}
-
-},{}],42:[function(require,module,exports){
 var GreedyMesh = (function() {
 //Cache buffer internally
 var mask = new Int32Array(4096);
@@ -43488,7 +43399,7 @@ if(exports) {
   exports.mesher = GreedyMesh;
 }
 
-},{}],43:[function(require,module,exports){
+},{}],42:[function(require,module,exports){
 "use strict";
 
 var MonotoneMesh = (function(){
@@ -43741,7 +43652,7 @@ if(exports) {
   exports.mesher = MonotoneMesh;
 }
 
-},{}],44:[function(require,module,exports){
+},{}],43:[function(require,module,exports){
 //The stupidest possible way to generate a Minecraft mesh (I think)
 function StupidMesh(volume, dims) {
   var vertices = [], faces = [], x = [0,0,0], n = 0;
@@ -43776,6 +43687,37 @@ function StupidMesh(volume, dims) {
 if(exports) {
   exports.mesher = StupidMesh;
 }
+
+},{}],39:[function(require,module,exports){
+module.exports = inherits
+
+function inherits (c, p, proto) {
+  proto = proto || {}
+  var e = {}
+  ;[c.prototype, proto].forEach(function (s) {
+    Object.getOwnPropertyNames(s).forEach(function (k) {
+      e[k] = Object.getOwnPropertyDescriptor(s, k)
+    })
+  })
+  c.prototype = Object.create(p.prototype, e)
+  c.super = p
+}
+
+//function Child () {
+//  Child.super.call(this)
+//  console.error([this
+//                ,this.constructor
+//                ,this.constructor === Child
+//                ,this.constructor.super === Parent
+//                ,Object.getPrototypeOf(this) === Child.prototype
+//                ,Object.getPrototypeOf(Object.getPrototypeOf(this))
+//                 === Parent.prototype
+//                ,this instanceof Child
+//                ,this instanceof Parent])
+//}
+//function Parent () {}
+//inherits(Child, Parent)
+//new Child
 
 },{}],45:[function(require,module,exports){
 /**
@@ -43982,6 +43924,58 @@ module.exports = function() {
   	}
 
   };
+}
+
+},{}],44:[function(require,module,exports){
+//Naive meshing (with face culling)
+function CulledMesh(volume, dims) {
+  //Precalculate direction vectors for convenience
+  var dir = new Array(3);
+  for(var i=0; i<3; ++i) {
+    dir[i] = [[0,0,0], [0,0,0]];
+    dir[i][0][(i+1)%3] = 1;
+    dir[i][1][(i+2)%3] = 1;
+  }
+  //March over the volume
+  var vertices = []
+    , faces = []
+    , x = [0,0,0]
+    , B = [[false,true]    //Incrementally update bounds (this is a bit ugly)
+          ,[false,true]
+          ,[false,true]]
+    , n = -dims[0]*dims[1];
+  for(           B[2]=[false,true],x[2]=-1; x[2]<dims[2]; B[2]=[true,(++x[2]<dims[2]-1)])
+  for(n-=dims[0],B[1]=[false,true],x[1]=-1; x[1]<dims[1]; B[1]=[true,(++x[1]<dims[1]-1)])
+  for(n-=1,      B[0]=[false,true],x[0]=-1; x[0]<dims[0]; B[0]=[true,(++x[0]<dims[0]-1)], ++n) {
+    //Read current voxel and 3 neighboring voxels using bounds check results
+    var p =   (B[0][0] && B[1][0] && B[2][0]) ? volume[n]                 : 0
+      , b = [ (B[0][1] && B[1][0] && B[2][0]) ? volume[n+1]               : 0
+            , (B[0][0] && B[1][1] && B[2][0]) ? volume[n+dims[0]]         : 0
+            , (B[0][0] && B[1][0] && B[2][1]) ? volume[n+dims[0]*dims[1]] : 0
+          ];
+    //Generate faces
+    for(var d=0; d<3; ++d)
+    if((!!p) !== (!!b[d])) {
+      var s = !p ? 1 : 0;
+      var t = [x[0],x[1],x[2]]
+        , u = dir[d][s]
+        , v = dir[d][s^1];
+      ++t[d];
+      
+      var vertex_count = vertices.length;
+      vertices.push([t[0],           t[1],           t[2]          ]);
+      vertices.push([t[0]+u[0],      t[1]+u[1],      t[2]+u[2]     ]);
+      vertices.push([t[0]+u[0]+v[0], t[1]+u[1]+v[1], t[2]+u[2]+v[2]]);
+      vertices.push([t[0]     +v[0], t[1]     +v[1], t[2]     +v[2]]);
+      faces.push([vertex_count, vertex_count+1, vertex_count+2, vertex_count+3, s ? b[d] : p]);
+    }
+  }
+  return { vertices:vertices, faces:faces };
+}
+
+
+if(exports) {
+  exports.mesher = CulledMesh;
 }
 
 },{}],33:[function(require,module,exports){
@@ -44254,228 +44248,6 @@ module.exports = function(game) {
     return playerGroup
 }
 },{}],50:[function(require,module,exports){
-"use strict"
-
-function traceRay_impl(
-  voxels,
-  px, py, pz,
-  dx, dy, dz,
-  max_d,
-  hit_pos,
-  hit_norm,
-  EPSILON) {
-  var t = 0.0
-    , nx=0, ny=0, nz=0
-    , ix, iy, iz
-    , fx, fy, fz
-    , ox, oy, oz
-    , ex, ey, ez
-    , b, step, min_step
-    , floor = Math.floor
-  //Step block-by-block along ray
-  while(t <= max_d) {
-    ox = px + t * dx
-    oy = py + t * dy
-    oz = pz + t * dz
-    ix = floor(ox)|0
-    iy = floor(oy)|0
-    iz = floor(oz)|0
-    fx = ox - ix
-    fy = oy - iy
-    fz = oz - iz
-    b = voxels.getBlock(ix, iy, iz)
-    if(b) {
-      if(hit_pos) {
-        //Clamp to face on hit
-        hit_pos[0] = fx < EPSILON ? +ix : (fx > 1.0-EPSILON ? ix+1.0-EPSILON : ox)
-        hit_pos[1] = fy < EPSILON ? +iy : (fy > 1.0-EPSILON ? iy+1.0-EPSILON : oy)
-        hit_pos[2] = fz < EPSILON ? +iz : (fz > 1.0-EPSILON ? iz+1.0-EPSILON : oz)
-      }
-      if(hit_norm) {
-        hit_norm[0] = nx
-        hit_norm[1] = ny
-        hit_norm[2] = nz
-      }
-      return b
-    }
-    //Check edge cases
-    min_step = +(EPSILON * (1.0 + t))
-    if(t > min_step) {
-      ex = nx < 0 ? fx <= min_step : fx >= 1.0 - min_step
-      ey = ny < 0 ? fy <= min_step : fy >= 1.0 - min_step
-      ez = nz < 0 ? fz <= min_step : fz >= 1.0 - min_step
-      if(ex && ey && ez) {
-        b = voxels.getBlock(ix+nx, iy+ny, iz) ||
-            voxels.getBlock(ix, iy+ny, iz+nz) ||
-            voxels.getBlock(ix+nx, iy, iz+nz)
-        if(b) {
-          if(hit_pos) {
-            hit_pos[0] = nx < 0 ? ix-EPSILON : ix + 1.0-EPSILON
-            hit_pos[1] = ny < 0 ? iy-EPSILON : iy + 1.0-EPSILON
-            hit_pos[2] = nz < 0 ? iz-EPSILON : iz + 1.0-EPSILON
-          }
-          if(hit_norm) {
-            hit_norm[0] = nx
-            hit_norm[1] = ny
-            hit_norm[2] = nz
-          }
-          return b
-        }
-      }
-      if(ex && (ey || ez)) {
-        b = voxels.getBlock(ix+nx, iy, iz)
-        if(b) {
-          if(hit_pos) {
-            hit_pos[0] = nx < 0 ? ix-EPSILON : ix + 1.0-EPSILON
-            hit_pos[1] = fy < EPSILON ? +iy : oy
-            hit_pos[2] = fz < EPSILON ? +iz : oz
-          }
-          if(hit_norm) {
-            hit_norm[0] = nx
-            hit_norm[1] = ny
-            hit_norm[2] = nz
-          }
-          return b
-        }
-      }
-      if(ey && (ex || ez)) {
-        b = voxels.getBlock(ix, iy+ny, iz)
-        if(b) {
-          if(hit_pos) {
-            hit_pos[0] = fx < EPSILON ? +ix : ox
-            hit_pos[1] = ny < 0 ? iy-EPSILON : iy + 1.0-EPSILON
-            hit_pos[2] = fz < EPSILON ? +iz : oz
-          }
-          if(hit_norm) {
-            hit_norm[0] = nx
-            hit_norm[1] = ny
-            hit_norm[2] = nz
-          }
-          return b
-        }
-      }
-      if(ez && (ex || ey)) {
-        b = voxels.getBlock(ix, iy, iz+nz)
-        if(b) {
-          if(hit_pos) {
-            hit_pos[0] = fx < EPSILON ? +ix : ox
-            hit_pos[1] = fy < EPSILON ? +iy : oy
-            hit_pos[2] = nz < 0 ? iz-EPSILON : iz + 1.0-EPSILON
-          }
-          if(hit_norm) {
-            hit_norm[0] = nx
-            hit_norm[1] = ny
-            hit_norm[2] = nz
-          }
-          return b
-        }
-      }
-    }
-    //Walk to next face of cube along ray
-    nx = ny = nz = 0
-    step = 2.0
-    if(dx < -EPSILON) {
-      var s = -fx/dx
-      nx = 1
-      step = s
-    }
-    if(dx > EPSILON) {
-      var s = (1.0-fx)/dx
-      nx = -1
-      step = s
-    }
-    if(dy < -EPSILON) {
-      var s = -fy/dy
-      if(s < step-min_step) {
-        nx = 0
-        ny = 1
-        step = s
-      } else if(s < step+min_step) {
-        ny = 1
-      }
-    }
-    if(dy > EPSILON) {
-      var s = (1.0-fy)/dy
-      if(s < step-min_step) {
-        nx = 0
-        ny = -1
-        step = s
-      } else if(s < step+min_step) {
-        ny = -1
-      }
-    }
-    if(dz < -EPSILON) {
-      var s = -fz/dz
-      if(s < step-min_step) {
-        nx = ny = 0
-        nz = 1
-        step = s
-      } else if(s < step+min_step) {
-        nz = 1
-      }
-    }
-    if(dz > EPSILON) {
-      var s = (1.0-fz)/dz
-      if(s < step-min_step) {
-        nx = ny = 0
-        nz = -1
-        step = s
-      } else if(s < step+min_step) {
-        nz = -1
-      }
-    }
-    if(step > max_d - t) {
-      step = max_d - t - min_step
-    }
-    if(step < min_step) {
-      step = min_step
-    }
-    t += step
-  }
-  if(hit_pos) {
-    hit_pos[0] = ox;
-    hit_pos[1] = oy;
-    hit_pos[2] = oz;
-  }
-  if(hit_norm) {
-    hit_norm[0] = hit_norm[1] = hit_norm[2] = 0;
-  }
-  return 0
-}
-
-function traceRay(voxels, origin, direction, max_d, hit_pos, hit_norm, EPSILON) {
-  var px = +origin[0]
-    , py = +origin[1]
-    , pz = +origin[2]
-    , dx = +direction[0]
-    , dy = +direction[1]
-    , dz = +direction[2]
-    , ds = Math.sqrt(dx*dx + dy*dy + dz*dz)
-  if(typeof(EPSILON) === "undefined") {
-    EPSILON = 1e-8
-  }
-  if(ds < EPSILON) {
-    if(hit_pos) {
-      hit_pos[0] = hit_pos[1] = hit_pos[2]
-    }
-    if(hit_norm) {
-      hit_norm[0] = hit_norm[1] = hit_norm[2]
-    }
-    return 0;
-  }
-  dx /= ds
-  dy /= ds
-  dz /= ds
-  if(typeof(max_d) === "undefined") {
-    max_d = 64.0
-  } else {
-    max_d = +max_d
-  }
-  return traceRay_impl(voxels, px, py, pz, dx, dy, dz, max_d, hit_pos, hit_norm, EPSILON)
-}
-
-module.exports = traceRay
-},{}],51:[function(require,module,exports){
 module.exports = control
 
 var Stream = require('stream').Stream
@@ -44765,7 +44537,308 @@ function clamp(value, to) {
   return isFinite(to) ? max(min(value, to), -to) : value
 }
 
-},{"stream":16}],52:[function(require,module,exports){
+},{"stream":16}],51:[function(require,module,exports){
+module.exports = inherits
+
+function inherits (c, p, proto) {
+  proto = proto || {}
+  var e = {}
+  ;[c.prototype, proto].forEach(function (s) {
+    Object.getOwnPropertyNames(s).forEach(function (k) {
+      e[k] = Object.getOwnPropertyDescriptor(s, k)
+    })
+  })
+  c.prototype = Object.create(p.prototype, e)
+  c.super = p
+}
+
+//function Child () {
+//  Child.super.call(this)
+//  console.error([this
+//                ,this.constructor
+//                ,this.constructor === Child
+//                ,this.constructor.super === Parent
+//                ,Object.getPrototypeOf(this) === Child.prototype
+//                ,Object.getPrototypeOf(Object.getPrototypeOf(this))
+//                 === Parent.prototype
+//                ,this instanceof Child
+//                ,this instanceof Parent])
+//}
+//function Parent () {}
+//inherits(Child, Parent)
+//new Child
+
+},{}],52:[function(require,module,exports){
+"use strict"
+
+function traceRay_impl(
+  voxels,
+  px, py, pz,
+  dx, dy, dz,
+  max_d,
+  hit_pos,
+  hit_norm,
+  EPSILON) {
+  var t = 0.0
+    , nx=0, ny=0, nz=0
+    , ix, iy, iz
+    , fx, fy, fz
+    , ox, oy, oz
+    , ex, ey, ez
+    , b, step, min_step
+    , floor = Math.floor
+  //Step block-by-block along ray
+  while(t <= max_d) {
+    ox = px + t * dx
+    oy = py + t * dy
+    oz = pz + t * dz
+    ix = floor(ox)|0
+    iy = floor(oy)|0
+    iz = floor(oz)|0
+    fx = ox - ix
+    fy = oy - iy
+    fz = oz - iz
+    b = voxels.getBlock(ix, iy, iz)
+    if(b) {
+      if(hit_pos) {
+        //Clamp to face on hit
+        hit_pos[0] = fx < EPSILON ? +ix : (fx > 1.0-EPSILON ? ix+1.0-EPSILON : ox)
+        hit_pos[1] = fy < EPSILON ? +iy : (fy > 1.0-EPSILON ? iy+1.0-EPSILON : oy)
+        hit_pos[2] = fz < EPSILON ? +iz : (fz > 1.0-EPSILON ? iz+1.0-EPSILON : oz)
+      }
+      if(hit_norm) {
+        hit_norm[0] = nx
+        hit_norm[1] = ny
+        hit_norm[2] = nz
+      }
+      return b
+    }
+    //Check edge cases
+    min_step = +(EPSILON * (1.0 + t))
+    if(t > min_step) {
+      ex = nx < 0 ? fx <= min_step : fx >= 1.0 - min_step
+      ey = ny < 0 ? fy <= min_step : fy >= 1.0 - min_step
+      ez = nz < 0 ? fz <= min_step : fz >= 1.0 - min_step
+      if(ex && ey && ez) {
+        b = voxels.getBlock(ix+nx, iy+ny, iz) ||
+            voxels.getBlock(ix, iy+ny, iz+nz) ||
+            voxels.getBlock(ix+nx, iy, iz+nz)
+        if(b) {
+          if(hit_pos) {
+            hit_pos[0] = nx < 0 ? ix-EPSILON : ix + 1.0-EPSILON
+            hit_pos[1] = ny < 0 ? iy-EPSILON : iy + 1.0-EPSILON
+            hit_pos[2] = nz < 0 ? iz-EPSILON : iz + 1.0-EPSILON
+          }
+          if(hit_norm) {
+            hit_norm[0] = nx
+            hit_norm[1] = ny
+            hit_norm[2] = nz
+          }
+          return b
+        }
+      }
+      if(ex && (ey || ez)) {
+        b = voxels.getBlock(ix+nx, iy, iz)
+        if(b) {
+          if(hit_pos) {
+            hit_pos[0] = nx < 0 ? ix-EPSILON : ix + 1.0-EPSILON
+            hit_pos[1] = fy < EPSILON ? +iy : oy
+            hit_pos[2] = fz < EPSILON ? +iz : oz
+          }
+          if(hit_norm) {
+            hit_norm[0] = nx
+            hit_norm[1] = ny
+            hit_norm[2] = nz
+          }
+          return b
+        }
+      }
+      if(ey && (ex || ez)) {
+        b = voxels.getBlock(ix, iy+ny, iz)
+        if(b) {
+          if(hit_pos) {
+            hit_pos[0] = fx < EPSILON ? +ix : ox
+            hit_pos[1] = ny < 0 ? iy-EPSILON : iy + 1.0-EPSILON
+            hit_pos[2] = fz < EPSILON ? +iz : oz
+          }
+          if(hit_norm) {
+            hit_norm[0] = nx
+            hit_norm[1] = ny
+            hit_norm[2] = nz
+          }
+          return b
+        }
+      }
+      if(ez && (ex || ey)) {
+        b = voxels.getBlock(ix, iy, iz+nz)
+        if(b) {
+          if(hit_pos) {
+            hit_pos[0] = fx < EPSILON ? +ix : ox
+            hit_pos[1] = fy < EPSILON ? +iy : oy
+            hit_pos[2] = nz < 0 ? iz-EPSILON : iz + 1.0-EPSILON
+          }
+          if(hit_norm) {
+            hit_norm[0] = nx
+            hit_norm[1] = ny
+            hit_norm[2] = nz
+          }
+          return b
+        }
+      }
+    }
+    //Walk to next face of cube along ray
+    nx = ny = nz = 0
+    step = 2.0
+    if(dx < -EPSILON) {
+      var s = -fx/dx
+      nx = 1
+      step = s
+    }
+    if(dx > EPSILON) {
+      var s = (1.0-fx)/dx
+      nx = -1
+      step = s
+    }
+    if(dy < -EPSILON) {
+      var s = -fy/dy
+      if(s < step-min_step) {
+        nx = 0
+        ny = 1
+        step = s
+      } else if(s < step+min_step) {
+        ny = 1
+      }
+    }
+    if(dy > EPSILON) {
+      var s = (1.0-fy)/dy
+      if(s < step-min_step) {
+        nx = 0
+        ny = -1
+        step = s
+      } else if(s < step+min_step) {
+        ny = -1
+      }
+    }
+    if(dz < -EPSILON) {
+      var s = -fz/dz
+      if(s < step-min_step) {
+        nx = ny = 0
+        nz = 1
+        step = s
+      } else if(s < step+min_step) {
+        nz = 1
+      }
+    }
+    if(dz > EPSILON) {
+      var s = (1.0-fz)/dz
+      if(s < step-min_step) {
+        nx = ny = 0
+        nz = -1
+        step = s
+      } else if(s < step+min_step) {
+        nz = -1
+      }
+    }
+    if(step > max_d - t) {
+      step = max_d - t - min_step
+    }
+    if(step < min_step) {
+      step = min_step
+    }
+    t += step
+  }
+  if(hit_pos) {
+    hit_pos[0] = ox;
+    hit_pos[1] = oy;
+    hit_pos[2] = oz;
+  }
+  if(hit_norm) {
+    hit_norm[0] = hit_norm[1] = hit_norm[2] = 0;
+  }
+  return 0
+}
+
+function traceRay(voxels, origin, direction, max_d, hit_pos, hit_norm, EPSILON) {
+  var px = +origin[0]
+    , py = +origin[1]
+    , pz = +origin[2]
+    , dx = +direction[0]
+    , dy = +direction[1]
+    , dz = +direction[2]
+    , ds = Math.sqrt(dx*dx + dy*dy + dz*dz)
+  if(typeof(EPSILON) === "undefined") {
+    EPSILON = 1e-8
+  }
+  if(ds < EPSILON) {
+    if(hit_pos) {
+      hit_pos[0] = hit_pos[1] = hit_pos[2]
+    }
+    if(hit_norm) {
+      hit_norm[0] = hit_norm[1] = hit_norm[2]
+    }
+    return 0;
+  }
+  dx /= ds
+  dy /= ds
+  dz /= ds
+  if(typeof(max_d) === "undefined") {
+    max_d = 64.0
+  } else {
+    max_d = +max_d
+  }
+  return traceRay_impl(voxels, px, py, pz, dx, dy, dz, max_d, hit_pos, hit_norm, EPSILON)
+}
+
+module.exports = traceRay
+},{}],53:[function(require,module,exports){
+(function(){module.exports = raf
+
+var EE = require('events').EventEmitter
+  , global = typeof window === 'undefined' ? this : window
+
+var _raf =
+  global.requestAnimationFrame ||
+  global.webkitRequestAnimationFrame ||
+  global.mozRequestAnimationFrame ||
+  global.msRequestAnimationFrame ||
+  global.oRequestAnimationFrame ||
+  (global.setImmediate ? function(fn, el) {
+    setImmediate(fn)
+  } :
+  function(fn, el) {
+    setTimeout(fn, 0)
+  })
+
+function raf(el) {
+  var now = raf.now()
+    , ee = new EE
+
+  ee.pause = function() { ee.paused = true }
+  ee.resume = function() { ee.paused = false }
+
+  _raf(iter, el)
+
+  return ee
+
+  function iter(timestamp) {
+    var _now = raf.now()
+      , dt = _now - now
+    
+    now = _now
+
+    ee.emit('data', dt)
+
+    if(!ee.paused) {
+      _raf(iter, el)
+    }
+  }
+}
+
+raf.polyfill = _raf
+raf.now = function() { return Date.now() }
+
+})()
+},{"events":15}],54:[function(require,module,exports){
 (function(process){var THREE, temporaryPosition, temporaryVector
 
 module.exports = function(three, opts) {
@@ -44854,177 +44927,7 @@ View.prototype.appendTo = function(element) {
   this.resizeWindow(this.width,this.height)
 }
 })(require("__browserify_process"))
-},{"__browserify_process":17}],53:[function(require,module,exports){
-module.exports = THREE
-},{}],54:[function(require,module,exports){
-module.exports = inherits
-
-function inherits (c, p, proto) {
-  proto = proto || {}
-  var e = {}
-  ;[c.prototype, proto].forEach(function (s) {
-    Object.getOwnPropertyNames(s).forEach(function (k) {
-      e[k] = Object.getOwnPropertyDescriptor(s, k)
-    })
-  })
-  c.prototype = Object.create(p.prototype, e)
-  c.super = p
-}
-
-//function Child () {
-//  Child.super.call(this)
-//  console.error([this
-//                ,this.constructor
-//                ,this.constructor === Child
-//                ,this.constructor.super === Parent
-//                ,Object.getPrototypeOf(this) === Child.prototype
-//                ,Object.getPrototypeOf(Object.getPrototypeOf(this))
-//                 === Parent.prototype
-//                ,this instanceof Child
-//                ,this instanceof Parent])
-//}
-//function Parent () {}
-//inherits(Child, Parent)
-//new Child
-
-},{}],55:[function(require,module,exports){
-(function(){module.exports = raf
-
-var EE = require('events').EventEmitter
-  , global = typeof window === 'undefined' ? this : window
-
-var _raf =
-  global.requestAnimationFrame ||
-  global.webkitRequestAnimationFrame ||
-  global.mozRequestAnimationFrame ||
-  global.msRequestAnimationFrame ||
-  global.oRequestAnimationFrame ||
-  (global.setImmediate ? function(fn, el) {
-    setImmediate(fn)
-  } :
-  function(fn, el) {
-    setTimeout(fn, 0)
-  })
-
-function raf(el) {
-  var now = raf.now()
-    , ee = new EE
-
-  ee.pause = function() { ee.paused = true }
-  ee.resume = function() { ee.paused = false }
-
-  _raf(iter, el)
-
-  return ee
-
-  function iter(timestamp) {
-    var _now = raf.now()
-      , dt = _now - now
-    
-    now = _now
-
-    ee.emit('data', dt)
-
-    if(!ee.paused) {
-      _raf(iter, el)
-    }
-  }
-}
-
-raf.polyfill = _raf
-raf.now = function() { return Date.now() }
-
-})()
-},{"events":15}],56:[function(require,module,exports){
-module.exports = function(field, tilesize, dimensions, offset) {
-  dimensions = dimensions || [ 
-    Math.sqrt(field.length) >> 0
-  , Math.sqrt(field.length) >> 0
-  , Math.sqrt(field.length) >> 0
-  ] 
-
-  offset = offset || [
-    0
-  , 0
-  , 0
-  ]
-
-  field = typeof field === 'function' ? field : function(x, y, z) {
-    return this[x + y * dimensions[1] + (z * dimensions[1] * dimensions[2])]
-  }.bind(field) 
-
-  var coords
-
-  coords = [0, 0, 0]
-
-  return collide
-
-  function collide(box, vec, oncollision) {
-    if(vec[0] === 0 && vec[1] === 0 && vec[2] === 0) return
-
-    // collide x, then y
-    collideaxis(0)
-    collideaxis(1)
-    collideaxis(2)
-
-    function collideaxis(i_axis) {
-      var j_axis = (i_axis + 1) % 3
-        , k_axis = (i_axis + 2) % 3 
-        , posi = vec[i_axis] > 0
-        , leading = box[posi ? 'max' : 'base'][i_axis] 
-        , dir = posi ? 1 : -1
-        , i_start = Math.floor(leading / tilesize)
-        , i_end = (Math.floor((leading + vec[i_axis]) / tilesize)) + dir
-        , j_start = Math.floor(box.base[j_axis] / tilesize)
-        , j_end = Math.ceil(box.max[j_axis] / tilesize)
-        , k_start = Math.floor(box.base[k_axis] / tilesize) 
-        , k_end = Math.ceil(box.max[k_axis] / tilesize)
-        , done = false
-        , edge_vector
-        , edge
-        , tile
-
-      // loop from the current tile coord to the dest tile coord
-      //    -> loop on the opposite axis to get the other candidates
-      //      -> if `oncollision` return `true` we've hit something and
-      //         should break out of the loops entirely.
-      //         NB: `oncollision` is where the client gets the chance
-      //         to modify the `vec` in-flight.
-      // once we're done translate the box to the vec results
-
-      var step = 0
-      for(var i = i_start; !done && i !== i_end; ++step, i += dir) {
-        if(i < offset[i_axis] || i >= dimensions[i_axis]) continue
-        for(var j = j_start; !done && j !== j_end; ++j) {
-          if(j < offset[j_axis] || j >= dimensions[j_axis]) continue
-          for(var k = k_start; k !== k_end; ++k) {
-            if(k < offset[k_axis] || k >= dimensions[k_axis]) continue
-            coords[i_axis] = i
-            coords[j_axis] = j
-            coords[k_axis] = k
-            tile = field.apply(field, coords)
-
-            if(tile === undefined) continue
-
-            edge = dir > 0 ? i * tilesize : (i + 1) * tilesize
-            edge_vector = edge - leading
-
-            if(oncollision(i_axis, tile, coords, dir, edge_vector)) {
-              done = true
-              break
-            }
-          } 
-        }
-      }
-
-      coords[0] = coords[1] = coords[2] = 0
-      coords[i_axis] = vec[i_axis]
-      box.translate(coords)
-    }
-  }  
-}
-
-},{}],57:[function(require,module,exports){
+},{"__browserify_process":17}],55:[function(require,module,exports){
 (function(){/**
  * @fileoverview gl-matrix - High performance matrix and vector operations
  * @author Brandon Jones
@@ -48098,6 +48001,128 @@ if(typeof(exports) !== 'undefined') {
 })();
 
 })()
+},{}],47:[function(require,module,exports){
+module.exports = inherits
+
+function inherits (c, p, proto) {
+  proto = proto || {}
+  var e = {}
+  ;[c.prototype, proto].forEach(function (s) {
+    Object.getOwnPropertyNames(s).forEach(function (k) {
+      e[k] = Object.getOwnPropertyDescriptor(s, k)
+    })
+  })
+  c.prototype = Object.create(p.prototype, e)
+  c.super = p
+}
+
+//function Child () {
+//  Child.super.call(this)
+//  console.error([this
+//                ,this.constructor
+//                ,this.constructor === Child
+//                ,this.constructor.super === Parent
+//                ,Object.getPrototypeOf(this) === Child.prototype
+//                ,Object.getPrototypeOf(Object.getPrototypeOf(this))
+//                 === Parent.prototype
+//                ,this instanceof Child
+//                ,this instanceof Parent])
+//}
+//function Parent () {}
+//inherits(Child, Parent)
+//new Child
+
+},{}],56:[function(require,module,exports){
+module.exports = function(field, tilesize, dimensions, offset) {
+  dimensions = dimensions || [ 
+    Math.sqrt(field.length) >> 0
+  , Math.sqrt(field.length) >> 0
+  , Math.sqrt(field.length) >> 0
+  ] 
+
+  offset = offset || [
+    0
+  , 0
+  , 0
+  ]
+
+  field = typeof field === 'function' ? field : function(x, y, z) {
+    return this[x + y * dimensions[1] + (z * dimensions[1] * dimensions[2])]
+  }.bind(field) 
+
+  var coords
+
+  coords = [0, 0, 0]
+
+  return collide
+
+  function collide(box, vec, oncollision) {
+    if(vec[0] === 0 && vec[1] === 0 && vec[2] === 0) return
+
+    // collide x, then y
+    collideaxis(0)
+    collideaxis(1)
+    collideaxis(2)
+
+    function collideaxis(i_axis) {
+      var j_axis = (i_axis + 1) % 3
+        , k_axis = (i_axis + 2) % 3 
+        , posi = vec[i_axis] > 0
+        , leading = box[posi ? 'max' : 'base'][i_axis] 
+        , dir = posi ? 1 : -1
+        , i_start = Math.floor(leading / tilesize)
+        , i_end = (Math.floor((leading + vec[i_axis]) / tilesize)) + dir
+        , j_start = Math.floor(box.base[j_axis] / tilesize)
+        , j_end = Math.ceil(box.max[j_axis] / tilesize)
+        , k_start = Math.floor(box.base[k_axis] / tilesize) 
+        , k_end = Math.ceil(box.max[k_axis] / tilesize)
+        , done = false
+        , edge_vector
+        , edge
+        , tile
+
+      // loop from the current tile coord to the dest tile coord
+      //    -> loop on the opposite axis to get the other candidates
+      //      -> if `oncollision` return `true` we've hit something and
+      //         should break out of the loops entirely.
+      //         NB: `oncollision` is where the client gets the chance
+      //         to modify the `vec` in-flight.
+      // once we're done translate the box to the vec results
+
+      var step = 0
+      for(var i = i_start; !done && i !== i_end; ++step, i += dir) {
+        if(i < offset[i_axis] || i >= dimensions[i_axis]) continue
+        for(var j = j_start; !done && j !== j_end; ++j) {
+          if(j < offset[j_axis] || j >= dimensions[j_axis]) continue
+          for(var k = k_start; k !== k_end; ++k) {
+            if(k < offset[k_axis] || k >= dimensions[k_axis]) continue
+            coords[i_axis] = i
+            coords[j_axis] = j
+            coords[k_axis] = k
+            tile = field.apply(field, coords)
+
+            if(tile === undefined) continue
+
+            edge = dir > 0 ? i * tilesize : (i + 1) * tilesize
+            edge_vector = edge - leading
+
+            if(oncollision(i_axis, tile, coords, dir, edge_vector)) {
+              done = true
+              break
+            }
+          } 
+        }
+      }
+
+      coords[0] = coords[1] = coords[2] = 0
+      coords[i_axis] = vec[i_axis]
+      box.translate(coords)
+    }
+  }  
+}
+
+},{}],57:[function(require,module,exports){
+module.exports = THREE
 },{}],58:[function(require,module,exports){
 module.exports = pin
 
@@ -48179,37 +48204,6 @@ function pin(item, every, obj, name) {
     target.last = now 
   }
 }
-
-},{}],47:[function(require,module,exports){
-module.exports = inherits
-
-function inherits (c, p, proto) {
-  proto = proto || {}
-  var e = {}
-  ;[c.prototype, proto].forEach(function (s) {
-    Object.getOwnPropertyNames(s).forEach(function (k) {
-      e[k] = Object.getOwnPropertyDescriptor(s, k)
-    })
-  })
-  c.prototype = Object.create(p.prototype, e)
-  c.super = p
-}
-
-//function Child () {
-//  Child.super.call(this)
-//  console.error([this
-//                ,this.constructor
-//                ,this.constructor === Child
-//                ,this.constructor.super === Parent
-//                ,Object.getPrototypeOf(this) === Child.prototype
-//                ,Object.getPrototypeOf(Object.getPrototypeOf(this))
-//                 === Parent.prototype
-//                ,this instanceof Child
-//                ,this instanceof Parent])
-//}
-//function Parent () {}
-//inherits(Child, Parent)
-//new Child
 
 },{}],48:[function(require,module,exports){
 (function(){//     Underscore.js 1.4.3
@@ -50142,7 +50136,7 @@ Game.prototype.destroy = function() {
 }
 
 })(require("__browserify_process"))
-},{"path":29,"events":15,"./lib/stats":45,"./lib/detector":46,"voxel-mesh":59,"voxel-chunks":60,"voxel-raycast":50,"voxel-control":51,"voxel-view":52,"three":53,"inherits":54,"interact":61,"raf":55,"collide-3d-tilemap":56,"aabb-3d":62,"gl-matrix":57,"spatial-events":63,"kb-controls":64,"voxel-physical":65,"pin-it":58,"voxel-texture":66,"voxel-region-change":67,"voxel":31,"__browserify_process":17}],36:[function(require,module,exports){
+},{"path":29,"events":15,"./lib/stats":45,"./lib/detector":46,"voxel-chunks":59,"voxel-control":50,"voxel-mesh":60,"voxel-raycast":52,"inherits":51,"interact":61,"raf":53,"collide-3d-tilemap":56,"gl-matrix":55,"aabb-3d":62,"voxel-view":54,"spatial-events":63,"voxel-physical":64,"three":57,"kb-controls":65,"pin-it":58,"voxel-texture":66,"voxel-region-change":67,"voxel":31,"__browserify_process":17}],36:[function(require,module,exports){
 var EventEmitter = require('events').EventEmitter;
 var through = require('through');
 
@@ -54058,7 +54052,7 @@ SlowBuffer.prototype.writeDoubleBE = Buffer.prototype.writeDoubleBE;
 },{}]},{},[])
 ;;module.exports=require("buffer-browserify")
 
-},{}],39:[function(require,module,exports){
+},{}],37:[function(require,module,exports){
 (function(process,Buffer){var Parser = require('jsonparse')
   , Stream = require('stream').Stream
   , through = require('through')
@@ -54241,7 +54235,7 @@ exports.stringifyObject = function (op, sep, cl) {
 }
 
 })(require("__browserify_process"),require("__browserify_buffer").Buffer)
-},{"stream":16,"jsonparse":70,"through":71,"__browserify_process":17,"__browserify_buffer":69}],40:[function(require,module,exports){
+},{"stream":16,"through":70,"jsonparse":71,"__browserify_process":17,"__browserify_buffer":69}],40:[function(require,module,exports){
 var events = require('events')
 var inherits = require('inherits')
 
@@ -54465,7 +54459,7 @@ function parseXYZ (x, y, z) {
     return { x: Number(x), y: Number(y), z: Number(z) };
 }
 
-},{"./cat":49,"minecraft-skin":11}],68:[function(require,module,exports){
+},{"./cat":49,"minecraft-skin":10}],68:[function(require,module,exports){
 (function(process){var Stream = require('stream')
 
 // through
@@ -54536,6 +54530,112 @@ function through (write, end) {
 
 })(require("__browserify_process"))
 },{"stream":16,"__browserify_process":17}],70:[function(require,module,exports){
+(function(process){var Stream = require('stream')
+
+// through
+//
+// a stream that does nothing but re-emit the input.
+// useful for aggregating a series of changing but not ending streams into one stream)
+
+
+
+exports = module.exports = through
+through.through = through
+
+//create a readable writable stream.
+
+function through (write, end) {
+  write = write || function (data) { this.queue(data) }
+  end = end || function () { this.queue(null) }
+
+  var ended = false, destroyed = false, buffer = []
+  var stream = new Stream()
+  stream.readable = stream.writable = true
+  stream.paused = false
+
+  stream.write = function (data) {
+    write.call(this, data)
+    return !stream.paused
+  }
+
+  function drain() {
+    while(buffer.length && !stream.paused) {
+      var data = buffer.shift()
+      if(null === data)
+        return stream.emit('end')
+      else
+        stream.emit('data', data)
+    }
+  }
+
+  stream.queue = stream.push = function (data) {
+    buffer.push(data)
+    drain()
+    return stream
+  }
+
+  //this will be registered as the first 'end' listener
+  //must call destroy next tick, to make sure we're after any
+  //stream piped from here.
+  //this is only a problem if end is not emitted synchronously.
+  //a nicer way to do this is to make sure this is the last listener for 'end'
+
+  stream.on('end', function () {
+    stream.readable = false
+    if(!stream.writable)
+      process.nextTick(function () {
+        stream.destroy()
+      })
+  })
+
+  function _end () {
+    stream.writable = false
+    end.call(stream)
+    if(!stream.readable)
+      stream.destroy()
+  }
+
+  stream.end = function (data) {
+    if(ended) return
+    ended = true
+    if(arguments.length) stream.write(data)
+    _end() // will emit or queue
+    return stream
+  }
+
+  stream.destroy = function () {
+    if(destroyed) return
+    destroyed = true
+    ended = true
+    buffer.length = 0
+    stream.writable = stream.readable = false
+    stream.emit('close')
+    return stream
+  }
+
+  stream.pause = function () {
+    if(stream.paused) return
+    stream.paused = true
+    stream.emit('pause')
+    return stream
+  }
+  stream.resume = function () {
+    if(stream.paused) {
+      stream.paused = false
+    }
+    drain()
+    //may have become paused again,
+    //as drain emits 'data'.
+    if(!stream.paused)
+      stream.emit('drain')
+    return stream
+  }
+  return stream
+}
+
+
+})(require("__browserify_process"))
+},{"stream":16,"__browserify_process":17}],71:[function(require,module,exports){
 (function(Buffer){/*global Buffer*/
 // Named constants with unique integer values
 var C = {};
@@ -54939,113 +55039,7 @@ proto.onToken = function (token, value) {
 module.exports = Parser;
 
 })(require("__browserify_buffer").Buffer)
-},{"__browserify_buffer":69}],71:[function(require,module,exports){
-(function(process){var Stream = require('stream')
-
-// through
-//
-// a stream that does nothing but re-emit the input.
-// useful for aggregating a series of changing but not ending streams into one stream)
-
-
-
-exports = module.exports = through
-through.through = through
-
-//create a readable writable stream.
-
-function through (write, end) {
-  write = write || function (data) { this.queue(data) }
-  end = end || function () { this.queue(null) }
-
-  var ended = false, destroyed = false, buffer = []
-  var stream = new Stream()
-  stream.readable = stream.writable = true
-  stream.paused = false
-
-  stream.write = function (data) {
-    write.call(this, data)
-    return !stream.paused
-  }
-
-  function drain() {
-    while(buffer.length && !stream.paused) {
-      var data = buffer.shift()
-      if(null === data)
-        return stream.emit('end')
-      else
-        stream.emit('data', data)
-    }
-  }
-
-  stream.queue = stream.push = function (data) {
-    buffer.push(data)
-    drain()
-    return stream
-  }
-
-  //this will be registered as the first 'end' listener
-  //must call destroy next tick, to make sure we're after any
-  //stream piped from here.
-  //this is only a problem if end is not emitted synchronously.
-  //a nicer way to do this is to make sure this is the last listener for 'end'
-
-  stream.on('end', function () {
-    stream.readable = false
-    if(!stream.writable)
-      process.nextTick(function () {
-        stream.destroy()
-      })
-  })
-
-  function _end () {
-    stream.writable = false
-    end.call(stream)
-    if(!stream.readable)
-      stream.destroy()
-  }
-
-  stream.end = function (data) {
-    if(ended) return
-    ended = true
-    if(arguments.length) stream.write(data)
-    _end() // will emit or queue
-    return stream
-  }
-
-  stream.destroy = function () {
-    if(destroyed) return
-    destroyed = true
-    ended = true
-    buffer.length = 0
-    stream.writable = stream.readable = false
-    stream.emit('close')
-    return stream
-  }
-
-  stream.pause = function () {
-    if(stream.paused) return
-    stream.paused = true
-    stream.emit('pause')
-    return stream
-  }
-  stream.resume = function () {
-    if(stream.paused) {
-      stream.paused = false
-    }
-    drain()
-    //may have become paused again,
-    //as drain emits 'data'.
-    if(!stream.paused)
-      stream.emit('drain')
-    return stream
-  }
-  return stream
-}
-
-
-})(require("__browserify_process"))
-},{"stream":16,"__browserify_process":17}],72:[function(require,module,exports){
+},{"__browserify_buffer":69}],72:[function(require,module,exports){
 module.exports = inherits
 
 function inherits (c, p, proto) {
@@ -55107,7 +55101,7 @@ Indexer.prototype.voxel = function (pos) {
     return x + y*size + z*size*size;
 };
 
-},{}],60:[function(require,module,exports){
+},{}],59:[function(require,module,exports){
 var voxel = require('voxel');
 var ChunkMatrix = require('./lib/chunk_matrix');
 var indexer = require('./lib/indexer');
@@ -55305,7 +55299,7 @@ function usedrag(el) {
   return ee
 }
 
-},{"events":15,"stream":16,"pointer-lock":76,"fullscreen":77,"drag-stream":78}],64:[function(require,module,exports){
+},{"events":15,"stream":16,"pointer-lock":76,"drag-stream":77,"fullscreen":78}],65:[function(require,module,exports){
 var ever = require('ever')
   , vkey = require('vkey')
   , max = Math.max
@@ -55892,7 +55886,7 @@ function shim(el) {
     null
 }
 
-},{"events":15,"stream":16}],77:[function(require,module,exports){
+},{"events":15,"stream":16}],78:[function(require,module,exports){
 module.exports = fullscreen
 fullscreen.available = available
 
@@ -56122,7 +56116,7 @@ for(i = 112; i < 136; ++i) {
 }
 
 })()
-},{}],59:[function(require,module,exports){
+},{}],60:[function(require,module,exports){
 var THREE = require('three')
 
 module.exports = function(data, mesher, scaleFactor, three) {
@@ -56292,7 +56286,7 @@ Mesh.prototype.faceVertexUv = function(i) {
 }
 ;
 
-},{"three":53}],62:[function(require,module,exports){
+},{"three":57}],62:[function(require,module,exports){
 module.exports = AABB
 
 var vec3 = require('gl-matrix').vec3
@@ -56391,139 +56385,7 @@ proto.union = function(aabb) {
   return new AABB([base_x, base_y, base_z], [max_x - base_x, max_y - base_y, max_z - base_z])
 }
 
-},{"gl-matrix":57}],63:[function(require,module,exports){
-module.exports = SpatialEventEmitter
-
-var slice = [].slice
-  , Tree = require('./tree')
-  , aabb = require('aabb-3d')
-
-function SpatialEventEmitter() {
-  this.root = null
-  this.infinites = {}
-}
-
-var cons = SpatialEventEmitter
-  , proto = cons.prototype
-
-proto.size = 16
-
-proto.addListener = 
-proto.addEventListener = 
-proto.on = function(event, bbox, listener) {
-  if(!finite(bbox)) {
-    (this.infinites[event] = this.infinites[event] || []).push({
-      bbox: bbox
-    , func: listener
-    })
-    return this
-  }
-
-  (this.root = this.root || this.create_root(bbox))
-    .add(event, bbox, listener)
-
-  return this
-}
-
-proto.once = function(event, bbox, listener) {
-  var self = this
-
-  self.on(event, bbox, function once() {
-    listener.apply(null, arguments)
-    self.remove(event, once)
-  })
-
-  return self
-}
-
-proto.removeListener =
-proto.removeEventListener =
-proto.remove = function(event, listener) {
-  if(this.root) {
-    this.root.remove(event, listener)
-  }
-
-  if(!this.infinites[event]) {
-    return this
-  }
-
-  for(var i = 0, len = this.infinites[event].length; i < len; ++i) {
-    if(this.infinites[event][i].func === listener) {
-      break
-    }
-  }
-
-  if(i !== len) {
-    this.infinites[event].splice(i, 1)
-  }
-
-  return this
-}
-
-proto.emit = function(event, bbox/*, ...args */) {
-  var args = slice.call(arguments, 2)
-
-  // support point emitting
-  if('0' in bbox) {
-    bbox = aabb(bbox, [0, 0, 0]) 
-  }
-
-  if(this.root) {
-    this.root.send(event, bbox, args)
-  }
-
-  if(!this.infinites[event]) {
-    return this
-  }
-
-  var list = this.infinites[event].slice()
-  for(var i = 0, len = list.length; i < len; ++i) {
-    if(list[i].bbox.intersects(bbox)) {
-      list[i].func.apply(null, args) 
-    }
-  }
-
-  return this
-}
-
-proto.rootSize = function(size) {
-  proto.size = size
-}
-
-proto.create_root = function(bbox) {
-  var self = this
-    , size = self.size
-    , base = [
-        Math.floor(bbox.x0() / size) * size
-      , Math.floor(bbox.y0() / size) * size
-      , Math.floor(bbox.z0() / size) * size
-      ]
-    , tree_bbox = new bbox.constructor(base, [size, size, size])
-
-  function OurTree(size, bbox) {
-    Tree.call(this, size, bbox, null)
-  }
-
-  OurTree.prototype = Object.create(Tree.prototype)
-  OurTree.prototype.constructor = OurTree
-  OurTree.prototype.grow = function(new_root) {
-    self.root = new_root
-  }
-  OurTree.prototype.min_size = size
-
-  return new OurTree(size, tree_bbox) 
-}
-
-function finite(bbox) {
-  return isFinite(bbox.x0()) &&
-         isFinite(bbox.x1()) &&
-         isFinite(bbox.y0()) &&
-         isFinite(bbox.y1()) &&
-         isFinite(bbox.z0()) &&
-         isFinite(bbox.z1())
-}
-
-},{"./tree":83,"aabb-3d":62}],65:[function(require,module,exports){
+},{"gl-matrix":55}],64:[function(require,module,exports){
 module.exports = physical
 
 var aabb = require('aabb-3d')
@@ -56740,7 +56602,167 @@ proto.atRestZ = function() {
   return this.resting.z
 }
 
-},{"aabb-3d":62,"three":53}],81:[function(require,module,exports){
+},{"aabb-3d":62,"three":57}],63:[function(require,module,exports){
+module.exports = SpatialEventEmitter
+
+var slice = [].slice
+  , Tree = require('./tree')
+  , aabb = require('aabb-3d')
+
+function SpatialEventEmitter() {
+  this.root = null
+  this.infinites = {}
+}
+
+var cons = SpatialEventEmitter
+  , proto = cons.prototype
+
+proto.size = 16
+
+proto.addListener = 
+proto.addEventListener = 
+proto.on = function(event, bbox, listener) {
+  if(!finite(bbox)) {
+    (this.infinites[event] = this.infinites[event] || []).push({
+      bbox: bbox
+    , func: listener
+    })
+    return this
+  }
+
+  (this.root = this.root || this.create_root(bbox))
+    .add(event, bbox, listener)
+
+  return this
+}
+
+proto.once = function(event, bbox, listener) {
+  var self = this
+
+  self.on(event, bbox, function once() {
+    listener.apply(null, arguments)
+    self.remove(event, once)
+  })
+
+  return self
+}
+
+proto.removeListener =
+proto.removeEventListener =
+proto.remove = function(event, listener) {
+  if(this.root) {
+    this.root.remove(event, listener)
+  }
+
+  if(!this.infinites[event]) {
+    return this
+  }
+
+  for(var i = 0, len = this.infinites[event].length; i < len; ++i) {
+    if(this.infinites[event][i].func === listener) {
+      break
+    }
+  }
+
+  if(i !== len) {
+    this.infinites[event].splice(i, 1)
+  }
+
+  return this
+}
+
+proto.emit = function(event, bbox/*, ...args */) {
+  var args = slice.call(arguments, 2)
+
+  // support point emitting
+  if('0' in bbox) {
+    bbox = aabb(bbox, [0, 0, 0]) 
+  }
+
+  if(this.root) {
+    this.root.send(event, bbox, args)
+  }
+
+  if(!this.infinites[event]) {
+    return this
+  }
+
+  var list = this.infinites[event].slice()
+  for(var i = 0, len = list.length; i < len; ++i) {
+    if(list[i].bbox.intersects(bbox)) {
+      list[i].func.apply(null, args) 
+    }
+  }
+
+  return this
+}
+
+proto.rootSize = function(size) {
+  proto.size = size
+}
+
+proto.create_root = function(bbox) {
+  var self = this
+    , size = self.size
+    , base = [
+        Math.floor(bbox.x0() / size) * size
+      , Math.floor(bbox.y0() / size) * size
+      , Math.floor(bbox.z0() / size) * size
+      ]
+    , tree_bbox = new bbox.constructor(base, [size, size, size])
+
+  function OurTree(size, bbox) {
+    Tree.call(this, size, bbox, null)
+  }
+
+  OurTree.prototype = Object.create(Tree.prototype)
+  OurTree.prototype.constructor = OurTree
+  OurTree.prototype.grow = function(new_root) {
+    self.root = new_root
+  }
+  OurTree.prototype.min_size = size
+
+  return new OurTree(size, tree_bbox) 
+}
+
+function finite(bbox) {
+  return isFinite(bbox.x0()) &&
+         isFinite(bbox.x1()) &&
+         isFinite(bbox.y0()) &&
+         isFinite(bbox.y1()) &&
+         isFinite(bbox.z0()) &&
+         isFinite(bbox.z1())
+}
+
+},{"./tree":83,"aabb-3d":62}],67:[function(require,module,exports){
+module.exports = coordinates
+
+var aabb = require('aabb-3d')
+var events = require('events')
+
+function coordinates(spatial, box, regionWidth) {
+  var emitter = new events.EventEmitter()
+  var lastRegion = [NaN, NaN, NaN]
+  var thisRegion
+
+  if (arguments.length === 2) {
+    regionWidth = box
+    box = aabb([-Infinity, -Infinity, -Infinity], [Infinity, Infinity, Infinity])
+  }
+
+  spatial.on('position', box, updateRegion)
+  
+  function updateRegion(pos) {
+    thisRegion = [Math.floor(pos[0] / regionWidth), Math.floor(pos[1] / regionWidth), Math.floor(pos[2] / regionWidth)]
+    if (thisRegion[0] !== lastRegion[0] || thisRegion[1] !== lastRegion[1] || thisRegion[2] !== lastRegion[2]) {
+      emitter.emit('change', thisRegion)
+    }
+    lastRegion = thisRegion
+  }
+ 
+  return emitter
+}
+},{"events":15,"aabb-3d":62}],81:[function(require,module,exports){
 /*
  * tic
  * https://github.com/shama/tic
@@ -57043,35 +57065,7 @@ Atlas.prototype._debug = function() {
   });
 };
 
-},{}],67:[function(require,module,exports){
-module.exports = coordinates
-
-var aabb = require('aabb-3d')
-var events = require('events')
-
-function coordinates(spatial, box, regionWidth) {
-  var emitter = new events.EventEmitter()
-  var lastRegion = [NaN, NaN, NaN]
-  var thisRegion
-
-  if (arguments.length === 2) {
-    regionWidth = box
-    box = aabb([-Infinity, -Infinity, -Infinity], [Infinity, Infinity, Infinity])
-  }
-
-  spatial.on('position', box, updateRegion)
-  
-  function updateRegion(pos) {
-    thisRegion = [Math.floor(pos[0] / regionWidth), Math.floor(pos[1] / regionWidth), Math.floor(pos[2] / regionWidth)]
-    if (thisRegion[0] !== lastRegion[0] || thisRegion[1] !== lastRegion[1] || thisRegion[2] !== lastRegion[2]) {
-      emitter.emit('change', thisRegion)
-    }
-    lastRegion = thisRegion
-  }
- 
-  return emitter
-}
-},{"events":15,"aabb-3d":62}],79:[function(require,module,exports){
+},{}],79:[function(require,module,exports){
 var EventEmitter = require('events').EventEmitter;
 
 module.exports = function (elem) {
@@ -57279,7 +57273,7 @@ module.exports.generateExamples = function() {
 }
 
 
-},{"./chunker":86,"./meshers/culled":87,"./meshers/greedy":88,"./meshers/monotone":89,"./meshers/stupid":90}],84:[function(require,module,exports){
+},{"./meshers/culled":86,"./meshers/greedy":87,"./meshers/monotone":88,"./meshers/stupid":89,"./chunker":90}],84:[function(require,module,exports){
 module.exports={
   "initEvent" : [
     "type",
@@ -57367,7 +57361,7 @@ module.exports={
   ]
 }
 
-},{}],87:[function(require,module,exports){
+},{}],86:[function(require,module,exports){
 //Naive meshing (with face culling)
 function CulledMesh(volume, dims) {
   //Precalculate direction vectors for convenience
@@ -57419,7 +57413,7 @@ if(exports) {
   exports.mesher = CulledMesh;
 }
 
-},{}],88:[function(require,module,exports){
+},{}],87:[function(require,module,exports){
 var GreedyMesh = (function() {
 //Cache buffer internally
 var mask = new Int32Array(4096);
@@ -57536,7 +57530,7 @@ if(exports) {
   exports.mesher = GreedyMesh;
 }
 
-},{}],89:[function(require,module,exports){
+},{}],88:[function(require,module,exports){
 "use strict";
 
 var MonotoneMesh = (function(){
@@ -57789,7 +57783,7 @@ if(exports) {
   exports.mesher = MonotoneMesh;
 }
 
-},{}],90:[function(require,module,exports){
+},{}],89:[function(require,module,exports){
 //The stupidest possible way to generate a Minecraft mesh (I think)
 function StupidMesh(volume, dims) {
   var vertices = [], faces = [], x = [0,0,0], n = 0;
@@ -57951,7 +57945,7 @@ proto.send = function(event, bbox, args) {
   }
 }
 
-},{"aabb-3d":62}],78:[function(require,module,exports){
+},{"aabb-3d":62}],77:[function(require,module,exports){
 module.exports = dragstream
 
 var Stream = require('stream')
@@ -58241,10 +58235,10 @@ ChunkMatrix.prototype._update = function (ci) {
     this.emit('update', chunk, ckey);
 };
 
-},{"events":15,"./indexer":73,"voxel-mesh":93,"voxel":75,"inherits":54}],91:[function(require,module,exports){
+},{"events":15,"./indexer":73,"voxel-mesh":93,"voxel":75,"inherits":51}],91:[function(require,module,exports){
 module.exports = require('./lib/index')
 
-},{"./lib/index":94}],86:[function(require,module,exports){
+},{"./lib/index":94}],90:[function(require,module,exports){
 var events = require('events')
 var inherits = require('inherits')
 
@@ -58352,7 +58346,7 @@ Chunker.prototype.voxelVector = function(pos) {
   return {x: Math.abs(vx), y: Math.abs(vy), z: Math.abs(vz)}
 };
 
-},{"events":15,"inherits":54}],94:[function(require,module,exports){
+},{"events":15,"inherits":51}],94:[function(require,module,exports){
 var WriteStream = require('./writable')
   , ReadStream = require('./readable')
   , DOMStream = {}
@@ -58390,7 +58384,89 @@ DOMStream.createEventStream = function(el, type, preventDefault) {
 module.exports = DOMStream
 
 
-},{"./writable":95,"./readable":96}],96:[function(require,module,exports){
+},{"./writable":95,"./readable":96}],95:[function(require,module,exports){
+module.exports = DOMStream
+
+var Stream = require('stream').Stream
+
+function DOMStream(el, mode, mimetype) {
+  this.el = el
+  this.mode = mode
+  this.mimetype = mimetype || 'text/html'
+
+  Stream.call(this)
+}
+
+var cons = DOMStream
+  , proto = cons.prototype = new Stream
+
+proto.constructor = cons
+
+cons.APPEND = 0
+cons.WRITE = 1
+
+proto.writable = true
+
+proto.setMimetype = function(mime) {
+  this.mimetype = mime
+}
+
+proto.write = function(data) {
+  var result = (this.mode === cons.APPEND) ? this.append(data) : this.insert(data)
+  this.emit('data', this.el.childNodes)
+  return result
+}
+
+proto.end = function() {
+
+}
+
+proto.insert = function(data) {
+  this.el.innerHTML = ''
+  return this.append(data)
+}
+
+proto.append = function(data) {
+  var result = this[this.resolveMimetypeHandler()](data)
+
+  for(var i = 0, len = result.length; i < len; ++i) {
+    this.el.appendChild(result[i])
+  }
+
+  return true
+}
+
+proto.resolveMimetypeHandler = function() {
+  var type = this.mimetype.replace(/(\/\w)/, function(x) {
+    return x.slice(1).toUpperCase()
+  })
+  type = type.charAt(0).toUpperCase() + type.slice(1)
+
+  return 'construct'+type
+}
+
+proto.constructTextHtml = function(data) {
+  var isTableFragment = /(tr|td|th)/.test(data) && !/table/.test(data)
+    , div
+
+  if(isTableFragment) {
+    // wuh-oh.
+    div = document.createElement('table')
+  }
+
+  div = div || document.createElement('div')
+  div.innerHTML = data 
+
+  return [].slice.call(div.childNodes)
+}
+
+proto.constructTextPlain = function(data) {
+  var textNode = document.createTextNode(data)
+
+  return [textNode]
+}
+
+},{"stream":16}],96:[function(require,module,exports){
 module.exports = DOMStream
 
 var Stream = require('stream').Stream
@@ -58497,88 +58573,6 @@ function valueFromElement(el) {
       return 'data', el.checked
   }
   return el.value
-}
-
-},{"stream":16}],95:[function(require,module,exports){
-module.exports = DOMStream
-
-var Stream = require('stream').Stream
-
-function DOMStream(el, mode, mimetype) {
-  this.el = el
-  this.mode = mode
-  this.mimetype = mimetype || 'text/html'
-
-  Stream.call(this)
-}
-
-var cons = DOMStream
-  , proto = cons.prototype = new Stream
-
-proto.constructor = cons
-
-cons.APPEND = 0
-cons.WRITE = 1
-
-proto.writable = true
-
-proto.setMimetype = function(mime) {
-  this.mimetype = mime
-}
-
-proto.write = function(data) {
-  var result = (this.mode === cons.APPEND) ? this.append(data) : this.insert(data)
-  this.emit('data', this.el.childNodes)
-  return result
-}
-
-proto.end = function() {
-
-}
-
-proto.insert = function(data) {
-  this.el.innerHTML = ''
-  return this.append(data)
-}
-
-proto.append = function(data) {
-  var result = this[this.resolveMimetypeHandler()](data)
-
-  for(var i = 0, len = result.length; i < len; ++i) {
-    this.el.appendChild(result[i])
-  }
-
-  return true
-}
-
-proto.resolveMimetypeHandler = function() {
-  var type = this.mimetype.replace(/(\/\w)/, function(x) {
-    return x.slice(1).toUpperCase()
-  })
-  type = type.charAt(0).toUpperCase() + type.slice(1)
-
-  return 'construct'+type
-}
-
-proto.constructTextHtml = function(data) {
-  var isTableFragment = /(tr|td|th)/.test(data) && !/table/.test(data)
-    , div
-
-  if(isTableFragment) {
-    // wuh-oh.
-    div = document.createElement('table')
-  }
-
-  div = div || document.createElement('div')
-  div.innerHTML = data 
-
-  return [].slice.call(div.childNodes)
-}
-
-proto.constructTextPlain = function(data) {
-  var textNode = document.createTextNode(data)
-
-  return [textNode]
 }
 
 },{"stream":16}],93:[function(require,module,exports){
@@ -58733,5 +58727,5 @@ Mesh.prototype.faceVertexUv = function(i) {
 }
 ;
 
-},{"three":53}]},{},[4])
+},{"three":57}]},{},[4])
 ;
