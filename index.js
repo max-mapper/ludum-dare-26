@@ -26,11 +26,12 @@ function boot() {
   if( !Detector().webgl ) { return alert('you are not webgl capable!')  }
 
   var id = ~~(Math.random() * 10000) + '' + ~~(Math.random() * 10000)
-  var peer = new Peer(id, {host: 'peerjs-maxogden.jit.su', port: 80})
-  // var peer = new Peer(id, {host: 'pizzacats.local', port: 9000})
-  var socket = websocket('ws://p2plobby.jit.su')
-  // var socket = websocket('ws://pizzacats.local:8080')
+  // var peer = new Peer(id, {host: 'peerjs-maxogden.jit.su', port: 80})
+  var peer = new Peer(id, {host: 'pizzacats.local', port: 9000})
+  // var socket = websocket('ws://p2plobby.jit.su')
+  var socket = websocket('ws://pizzacats.local:8080')
   window.peer = peer
+  window.socket = socket
   var emitter = duplexEmitter(socket)
 
   createGame({
@@ -52,11 +53,19 @@ function boot() {
   function setup(game, avatar) {
     window.game = game
     
+    document.querySelector('canvas').addEventListener('contextmenu', function(e) {
+      if (e.button === 2) {
+        e.preventDefault()
+        return false
+      }
+    }, false)
+    
     peer.on('connection', function(conn) {
       var messages = document.querySelector('.messages')
       messages.innerHTML += 'connected! prepare to play<br>'
       setTimeout(hideWelcome, 2000)
       emitter.emit('connected')
+      socket.ws.close()
       game.paused = false
       setTimeout(startWater, buildPhaseTime)
       avatar.position.copy({x: 45, y: 5, z: -5})
@@ -119,11 +128,32 @@ function boot() {
     function startWater() {
       blueVirus.infect([start1[0], start1[1] - 1, start1[2]])
       greenVirus.infect([start2[0], start2[1] - 1, start2[2]])
+      setTimeout(countVoxels, 20000)
     }
     
-    game.controls.target().avatar.cameraInside.position.y = 25
-    game.controls.target().avatar.cameraInside.position.z = 3
-
+    function countVoxels() {
+      var bounds = b
+      var l = bounds[0], h = bounds[1]
+      var green = 0, blue = 0
+      for(var z = l[1]; z <= h[1]; ++z) {
+        for(var y = 0; y <= 30; ++y) {
+          for(var x = l[0]; x <= h[0]; ++x) {
+            var val = game.getBlock(x,y,z)
+            if (val === 3) blue++
+            if (val === 5) green++
+          }
+        }
+      }
+      gameMessages.innerHTML = "Results: Green blocks: " + green + ", Blue blocks: " + blue + ". Thanks for playing!"
+    }
+    
+    window.countVoxels = countVoxels
+    
+    var gtarget = game.controls.target()
+    gtarget.avatar.cameraInside.position.y = 25
+    gtarget.avatar.cameraInside.position.z = 3
+    gtarget.playerSkin.playerModel.position.y += 2
+    
     avatar.position.copy({x: 2, y: 6, z: 4})
     game.voxels.removeAllListeners('missingChunk')
 
@@ -137,7 +167,11 @@ function boot() {
     game.on('fire', function (target, state) {
       var select = game.controls.state.select
       var position = blockPosPlace
-      if (position) {
+      if (state.firealt) {
+        var vec = game.cameraVector();
+        var pos = game.cameraPosition();
+        game.createBlock(game.raycast(pos, vec, 100).adjacent, 'red')
+      } else if (position) {
         game.createBlock(position, 'red')
         checkAround(position)
         updateBuffer([position[0], position[1], position[2], 2])
@@ -151,6 +185,8 @@ function boot() {
         }
       }
     })
+    
+    // document.addEventListener('mousedown')
 
     document.querySelector('.instructions').innerHTML = document.querySelector('#loaded').innerHTML
     document.querySelector('.look').addEventListener('click', function(e) {
@@ -165,10 +201,9 @@ function boot() {
         messages.innerHTML += 'opponent found. trying to connect...<br>'
         var conn = peer.connect(peerID)
         conn.on('open', function() {
-          emitter.removeAllListeners('peer')
-          emitter.removeAllListeners('nobody')
           messages.innerHTML += 'connected! prepare to play<br>'
           setTimeout(hideWelcome, 2000)
+          socket.ws.close()
           setTimeout(startWater, buildPhaseTime)
           avatar.position.copy({x: -45, y: 5, z: -5})
           avatar.rotation.y = -1.6360000000000001
@@ -237,6 +272,7 @@ function createOpponent(game) {
   })
   var playerMesh = playerSkin.mesh
   window.opponent = playerSkin
+  playerSkin.playerModel.position.y += 2
   playerMesh.children[0].position.y = 10
   game.scene.add(playerMesh)
 }
