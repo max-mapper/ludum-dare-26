@@ -292,8 +292,11 @@ function boot() {
       if (state.firealt) {
         var vec = game.cameraVector();
         var pos = game.cameraPosition();
-        game.createBlock(game.raycast(pos, vec, 100).adjacent, 'red')
+        var placeLoc = game.raycast(pos, vec, 100).adjacent
+        console.log('right click', placeLoc)
+        game.createBlock(placeLoc, 'red')
       } else if (position) {
+        console.log('ctrl click', position)
         game.createBlock(position, 'red')
         checkAround(position)
         updateBuffer([position[0], position[1], position[2], 2])
@@ -380,6 +383,7 @@ function updateOpponent(message) {
       edit = edit.split(':')
       var val = +edit[3]
       var setpos = [+edit[0], +edit[1], +edit[2]]
+      console.log('set from remote', setpos)
       game.setBlock(setpos, val)
       if (val === 0 || val === 2) checkAround(setpos)
     })
@@ -42982,7 +42986,7 @@ Highlighter.prototype.highlight = function () {
     this.currVoxelAdj = newVoxelAdj
   }
 }
-},{"events":14,"underscore":43,"inherits":44}],45:[function(require,module,exports){
+},{"events":14,"inherits":43,"underscore":44}],45:[function(require,module,exports){
 module.exports = function(game) {
     this.game = game
     var T = game.THREE
@@ -43320,6 +43324,37 @@ module.exports = function() {
 }
 
 },{}],43:[function(require,module,exports){
+module.exports = inherits
+
+function inherits (c, p, proto) {
+  proto = proto || {}
+  var e = {}
+  ;[c.prototype, proto].forEach(function (s) {
+    Object.getOwnPropertyNames(s).forEach(function (k) {
+      e[k] = Object.getOwnPropertyDescriptor(s, k)
+    })
+  })
+  c.prototype = Object.create(p.prototype, e)
+  c.super = p
+}
+
+//function Child () {
+//  Child.super.call(this)
+//  console.error([this
+//                ,this.constructor
+//                ,this.constructor === Child
+//                ,this.constructor.super === Parent
+//                ,Object.getPrototypeOf(this) === Child.prototype
+//                ,Object.getPrototypeOf(Object.getPrototypeOf(this))
+//                 === Parent.prototype
+//                ,this instanceof Child
+//                ,this instanceof Parent])
+//}
+//function Parent () {}
+//inherits(Child, Parent)
+//new Child
+
+},{}],44:[function(require,module,exports){
 (function(){//     Underscore.js 1.4.3
 //     http://underscorejs.org
 //     (c) 2009-2012 Jeremy Ashkenas, DocumentCloud Inc.
@@ -44543,37 +44578,6 @@ module.exports = function() {
 }).call(this);
 
 })()
-},{}],44:[function(require,module,exports){
-module.exports = inherits
-
-function inherits (c, p, proto) {
-  proto = proto || {}
-  var e = {}
-  ;[c.prototype, proto].forEach(function (s) {
-    Object.getOwnPropertyNames(s).forEach(function (k) {
-      e[k] = Object.getOwnPropertyDescriptor(s, k)
-    })
-  })
-  c.prototype = Object.create(p.prototype, e)
-  c.super = p
-}
-
-//function Child () {
-//  Child.super.call(this)
-//  console.error([this
-//                ,this.constructor
-//                ,this.constructor === Child
-//                ,this.constructor.super === Parent
-//                ,Object.getPrototypeOf(this) === Child.prototype
-//                ,Object.getPrototypeOf(Object.getPrototypeOf(this))
-//                 === Parent.prototype
-//                ,this instanceof Child
-//                ,this instanceof Parent])
-//}
-//function Parent () {}
-//inherits(Child, Parent)
-//new Child
-
 },{}],33:[function(require,module,exports){
 (function(process){var voxel = require('voxel')
 var voxelMesh = require('voxel-mesh')
@@ -45280,7 +45284,7 @@ Game.prototype.destroy = function() {
 }
 
 })(require("__browserify_process"))
-},{"path":27,"events":14,"./lib/stats":46,"./lib/detector":47,"voxel-mesh":48,"voxel":49,"voxel-chunks":50,"voxel-raycast":51,"voxel-control":52,"voxel-view":53,"three":54,"inherits":55,"interact":56,"raf":57,"collide-3d-tilemap":58,"aabb-3d":59,"gl-matrix":60,"spatial-events":61,"kb-controls":62,"voxel-physical":63,"pin-it":64,"voxel-texture":65,"voxel-region-change":66,"__browserify_process":16}],34:[function(require,module,exports){
+},{"path":27,"events":14,"./lib/stats":46,"./lib/detector":47,"voxel":48,"voxel-mesh":49,"voxel-chunks":50,"voxel-raycast":51,"voxel-control":52,"voxel-view":53,"three":54,"inherits":55,"interact":56,"collide-3d-tilemap":57,"aabb-3d":58,"gl-matrix":59,"raf":60,"spatial-events":61,"kb-controls":62,"voxel-physical":63,"pin-it":64,"voxel-texture":65,"voxel-region-change":66,"__browserify_process":16}],34:[function(require,module,exports){
 var EventEmitter = require('events').EventEmitter;
 var through = require('through');
 
@@ -50012,54 +50016,6 @@ function inherits (c, p, proto) {
 //new Child
 
 },{}],57:[function(require,module,exports){
-(function(){module.exports = raf
-
-var EE = require('events').EventEmitter
-  , global = typeof window === 'undefined' ? this : window
-
-var _raf =
-  global.requestAnimationFrame ||
-  global.webkitRequestAnimationFrame ||
-  global.mozRequestAnimationFrame ||
-  global.msRequestAnimationFrame ||
-  global.oRequestAnimationFrame ||
-  (global.setImmediate ? function(fn, el) {
-    setImmediate(fn)
-  } :
-  function(fn, el) {
-    setTimeout(fn, 0)
-  })
-
-function raf(el) {
-  var now = raf.now()
-    , ee = new EE
-
-  ee.pause = function() { ee.paused = true }
-  ee.resume = function() { ee.paused = false }
-
-  _raf(iter, el)
-
-  return ee
-
-  function iter(timestamp) {
-    var _now = raf.now()
-      , dt = _now - now
-    
-    now = _now
-
-    ee.emit('data', dt)
-
-    if(!ee.paused) {
-      _raf(iter, el)
-    }
-  }
-}
-
-raf.polyfill = _raf
-raf.now = function() { return Date.now() }
-
-})()
-},{"events":14}],58:[function(require,module,exports){
 module.exports = function(field, tilesize, dimensions, offset) {
   dimensions = dimensions || [ 
     Math.sqrt(field.length) >> 0
@@ -50148,7 +50104,7 @@ module.exports = function(field, tilesize, dimensions, offset) {
   }  
 }
 
-},{}],60:[function(require,module,exports){
+},{}],59:[function(require,module,exports){
 (function(){/**
  * @fileoverview gl-matrix - High performance matrix and vector operations
  * @author Brandon Jones
@@ -53222,7 +53178,55 @@ if(typeof(exports) !== 'undefined') {
 })();
 
 })()
-},{}],54:[function(require,module,exports){
+},{}],60:[function(require,module,exports){
+(function(){module.exports = raf
+
+var EE = require('events').EventEmitter
+  , global = typeof window === 'undefined' ? this : window
+
+var _raf =
+  global.requestAnimationFrame ||
+  global.webkitRequestAnimationFrame ||
+  global.mozRequestAnimationFrame ||
+  global.msRequestAnimationFrame ||
+  global.oRequestAnimationFrame ||
+  (global.setImmediate ? function(fn, el) {
+    setImmediate(fn)
+  } :
+  function(fn, el) {
+    setTimeout(fn, 0)
+  })
+
+function raf(el) {
+  var now = raf.now()
+    , ee = new EE
+
+  ee.pause = function() { ee.paused = true }
+  ee.resume = function() { ee.paused = false }
+
+  _raf(iter, el)
+
+  return ee
+
+  function iter(timestamp) {
+    var _now = raf.now()
+      , dt = _now - now
+    
+    now = _now
+
+    ee.emit('data', dt)
+
+    if(!ee.paused) {
+      _raf(iter, el)
+    }
+  }
+}
+
+raf.polyfill = _raf
+raf.now = function() { return Date.now() }
+
+})()
+},{"events":14}],54:[function(require,module,exports){
 (function(process){
 var window = window || {};
 var self = self || {};
@@ -90172,7 +90176,7 @@ function inherits (c, p, proto) {
 //inherits(Child, Parent)
 //new Child
 
-},{}],49:[function(require,module,exports){
+},{}],48:[function(require,module,exports){
 var chunker = require('./chunker')
 
 module.exports = function(opts) {
@@ -90268,7 +90272,7 @@ module.exports.generateExamples = function() {
 }
 
 
-},{"./chunker":72,"./meshers/culled":73,"./meshers/greedy":74,"./meshers/monotone":75,"./meshers/stupid":76}],73:[function(require,module,exports){
+},{"./meshers/culled":72,"./chunker":73,"./meshers/greedy":74,"./meshers/monotone":75,"./meshers/stupid":76}],72:[function(require,module,exports){
 //Naive meshing (with face culling)
 function CulledMesh(volume, dims) {
   //Precalculate direction vectors for convenience
@@ -91772,7 +91776,7 @@ for(i = 112; i < 136; ++i) {
 }
 
 })()
-},{}],48:[function(require,module,exports){
+},{}],49:[function(require,module,exports){
 var THREE = require('three')
 
 module.exports = function(data, mesher, scaleFactor, three) {
@@ -91942,7 +91946,7 @@ Mesh.prototype.faceVertexUv = function(i) {
 }
 ;
 
-},{"three":54}],59:[function(require,module,exports){
+},{"three":54}],58:[function(require,module,exports){
 module.exports = AABB
 
 var vec3 = require('gl-matrix').vec3
@@ -92041,7 +92045,7 @@ proto.union = function(aabb) {
   return new AABB([base_x, base_y, base_z], [max_x - base_x, max_y - base_y, max_z - base_z])
 }
 
-},{"gl-matrix":60}],61:[function(require,module,exports){
+},{"gl-matrix":59}],61:[function(require,module,exports){
 module.exports = SpatialEventEmitter
 
 var slice = [].slice
@@ -92173,7 +92177,7 @@ function finite(bbox) {
          isFinite(bbox.z1())
 }
 
-},{"./tree":87,"aabb-3d":59}],63:[function(require,module,exports){
+},{"./tree":87,"aabb-3d":58}],63:[function(require,module,exports){
 module.exports = physical
 
 var aabb = require('aabb-3d')
@@ -92390,7 +92394,7 @@ proto.atRestZ = function() {
   return this.resting.z
 }
 
-},{"aabb-3d":59,"three":54}],85:[function(require,module,exports){
+},{"aabb-3d":58,"three":54}],85:[function(require,module,exports){
 /*
  * tic
  * https://github.com/shama/tic
@@ -92721,7 +92725,7 @@ function coordinates(spatial, box, regionWidth) {
  
   return emitter
 }
-},{"events":14,"aabb-3d":59}],83:[function(require,module,exports){
+},{"events":14,"aabb-3d":58}],83:[function(require,module,exports){
 var EventEmitter = require('events').EventEmitter;
 
 module.exports = function (elem) {
@@ -93475,7 +93479,7 @@ if(exports) {
   exports.mesher = StupidMesh;
 }
 
-},{}],72:[function(require,module,exports){
+},{}],73:[function(require,module,exports){
 var events = require('events')
 var inherits = require('inherits')
 
@@ -93738,7 +93742,7 @@ proto.send = function(event, bbox, args) {
   }
 }
 
-},{"aabb-3d":59}],81:[function(require,module,exports){
+},{"aabb-3d":58}],81:[function(require,module,exports){
 module.exports = dragstream
 
 var Stream = require('stream')
@@ -94183,7 +94187,9 @@ Mesh.prototype.faceVertexUv = function(i) {
 }
 ;
 
-},{"three":99}],90:[function(require,module,exports){
+},{"three":99}],99:[function(require,module,exports){
+module.exports = THREE
+},{}],90:[function(require,module,exports){
 var events = require('events')
 var inherits = require('inherits')
 
@@ -94291,9 +94297,7 @@ Chunker.prototype.voxelVector = function(pos) {
   return {x: Math.abs(vx), y: Math.abs(vy), z: Math.abs(vz)}
 };
 
-},{"events":14,"inherits":55}],99:[function(require,module,exports){
-module.exports = THREE
-},{}],98:[function(require,module,exports){
+},{"events":14,"inherits":55}],98:[function(require,module,exports){
 var WriteStream = require('./writable')
   , ReadStream = require('./readable')
   , DOMStream = {}

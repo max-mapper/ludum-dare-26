@@ -163,8 +163,11 @@ function boot() {
       if (state.firealt) {
         var vec = game.cameraVector();
         var pos = game.cameraPosition();
-        game.createBlock(game.raycast(pos, vec, 100).adjacent, 'red')
+        var placeLoc = game.raycast(pos, vec, 100).adjacent
+        console.log('right click', placeLoc)
+        game.createBlock(placeLoc, 'red')
       } else if (position) {
+        console.log('ctrl click', position)
         game.createBlock(position, 'red')
         checkAround(position)
         updateBuffer([position[0], position[1], position[2], 2])
@@ -251,6 +254,7 @@ function updateOpponent(message) {
       edit = edit.split(':')
       var val = +edit[3]
       var setpos = [+edit[0], +edit[1], +edit[2]]
+      console.log('set from remote', setpos)
       game.setBlock(setpos, val)
       if (val === 0 || val === 2) checkAround(setpos)
     })
