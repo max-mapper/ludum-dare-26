@@ -13,7 +13,7 @@ var gameMessages = document.querySelector('#game-messages')
 
 var lerpPercent = 0.2
 var updateRate = 50
-var updateBufferSize = 1
+var updateBufferSize = 5
 var buildPhaseTime = 180000
 var b = [[-50, -32], [50, 32]]
 var height = 5
@@ -84,7 +84,6 @@ function boot() {
           msg.push(edit.join(':'))
         })
         msg = msg.join('|')
-        console.log('transmitting', msg, msg.length)
         conn.send(msg)
       }
     }
@@ -165,10 +164,9 @@ function boot() {
         var vec = game.cameraVector();
         var pos = game.cameraPosition();
         var placeLoc = game.raycast(pos, vec, 100).adjacent
-        console.log('right click', placeLoc)
         game.createBlock(placeLoc, 'red')
+        updateBuffer(placeLoc, 2)
       } else if (position) {
-        console.log('ctrl click', position)
         game.createBlock(position, 'red')
         checkAround(position)
         updateBuffer([position[0], position[1], position[2], 2])
@@ -255,7 +253,6 @@ function updateOpponent(message) {
       edit = edit.split(':')
       var val = +edit[3]
       var setpos = [+edit[0], +edit[1], +edit[2]]
-      console.log('set from remote', setpos)
       game.setBlock(setpos, val)
       if (val === 0 || val === 2) checkAround(setpos)
     })
