@@ -13,7 +13,7 @@ var gameMessages = document.querySelector('#game-messages')
 
 var lerpPercent = 0.2
 var updateRate = 50
-var updateBufferSize = 5
+var updateBufferSize = 1
 var buildPhaseTime = 180000
 var b = [[-50, -32], [50, 32]]
 var height = 5
@@ -84,6 +84,7 @@ function boot() {
           msg.push(edit.join(':'))
         })
         msg = msg.join('|')
+        console.log('transmitting', msg, msg.length)
         conn.send(msg)
       }
     }
