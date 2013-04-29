@@ -165,7 +165,7 @@ function boot() {
         var pos = game.cameraPosition();
         var placeLoc = game.raycast(pos, vec, 100).adjacent
         game.createBlock(placeLoc, 'red')
-        updateBuffer(placeLoc, 2)
+        updateBuffer([placeLoc, 2])
       } else if (position) {
         game.createBlock(position, 'red')
         checkAround(position)
