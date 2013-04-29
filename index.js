@@ -53,13 +53,6 @@ function boot() {
   function setup(game, avatar) {
     window.game = game
     
-    document.querySelector('canvas').addEventListener('contextmenu', function(e) {
-      if (e.button === 2) {
-        e.preventDefault()
-        return false
-      }
-    }, false)
-    
     peer.on('connection', function(conn) {
       var messages = document.querySelector('.messages')
       messages.innerHTML += 'connected! prepare to play<br>'
@@ -338,3 +331,11 @@ function scale( x, fromLow, fromHigh, toLow, toHigh ) {
 function resetGame() {
   alert('other player left, refresh page to find a new opponent')
 }
+
+(function () {
+  var blockContextMenu = function (evt) {
+    evt.preventDefault();
+  };
+
+  window.addEventListener('contextmenu', blockContextMenu);
+})()
