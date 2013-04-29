@@ -26,10 +26,10 @@ function boot() {
   if( !Detector().webgl ) { return alert('you are not webgl capable!')  }
 
   var id = ~~(Math.random() * 10000) + '' + ~~(Math.random() * 10000)
-  // var peer = new Peer(id, {host: 'peerjs-maxogden.jit.su', port: 80})
-  var peer = new Peer(id, {host: 'pizzacats.local', port: 9000})
-  // var socket = websocket('ws://p2plobby.jit.su')
-  var socket = websocket('ws://pizzacats.local:8080')
+  var peer = new Peer(id, {host: 'peerjs-maxogden.jit.su', port: 80})
+  // var peer = new Peer(id, {host: 'pizzacats.local', port: 9000})
+  var socket = websocket('ws://p2plobby.jit.su')
+  // var socket = websocket('ws://pizzacats.local:8080')
   window.peer = peer
   window.socket = socket
   var emitter = duplexEmitter(socket)
